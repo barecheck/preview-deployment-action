@@ -17,8 +17,8 @@ jobs:
         uses: ./
         with:
           build-dir: ./example
-          app-name: devactivity
-          domain: devactivity.com
+          app-name: barecheck
+          domain: barecheck.com
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
