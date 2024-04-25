@@ -17,7 +17,7 @@ import {
   OriginAccessControlOriginTypes,
 } from "@aws-sdk/client-cloudfront"
 
-import { appName } from "../config"
+import { appName, domainName } from "../config"
 
 const client = new CloudFrontClient()
 
@@ -115,6 +115,10 @@ function getDefaultDistributionInput(
         CertificateSource: CertificateSource.acm,
         SSLSupportMethod: SSLSupportMethod.sni_only,
         MinimumProtocolVersion: MinimumProtocolVersion.TLSv1_2016,
+      },
+      AlternateDomainNames: {
+        Quantity: Number(1),
+        Items: [`*.${domainName}`],
       },
     },
   }
