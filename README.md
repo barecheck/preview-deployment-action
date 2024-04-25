@@ -19,7 +19,7 @@ availabke to use as part of your Pull request workflow and does the following:
 steps:
    - name: Run deployment preview
       id: s3-preview-deployment-action
-      uses: @barecheck/preview-deployment-action@v1
+      uses: barecheck/preview-deployment-action@v1
       with:
          build-dir: ./example
          app-name: YOUR_APP_NAME
