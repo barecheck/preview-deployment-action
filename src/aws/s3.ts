@@ -9,6 +9,7 @@ import {
 import path from "path"
 import readdir from "recursive-readdir"
 import mimeTypes from "mime-types"
+import { readFileSync } from "fs"
 
 import { aws } from "../config"
 
@@ -87,10 +88,12 @@ export async function setupS3Bucket(bucketName: string) {
 
 async function putObject(bucketName: string, key: string, filePath: string) {
   const mineType = mimeTypes.lookup(filePath) || "application/octet-stream"
+  const fileBuffer = readFileSync(filePath)
+
   const params = {
     Bucket: bucketName,
     Key: key,
-    Body: filePath,
+    Body: fileBuffer,
     ContentType: mineType,
   }
 

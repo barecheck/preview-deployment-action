@@ -29,7 +29,7 @@ async function createInfra() {
   await syncFiles({
     bucketName,
     prefix: subDomain,
-    directory: "example",
+    directory: "out",
   })
 }
 

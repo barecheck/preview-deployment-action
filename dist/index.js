@@ -87500,6 +87500,7 @@ const client_s3_1 = __nccwpck_require__(9250);
 const path_1 = __importDefault(__nccwpck_require__(1017));
 const recursive_readdir_1 = __importDefault(__nccwpck_require__(6715));
 const mime_types_1 = __importDefault(__nccwpck_require__(3583));
+const fs_1 = __nccwpck_require__(7147);
 const config_1 = __nccwpck_require__(6373);
 const client = new client_s3_1.S3Client({ region: config_1.aws.region });
 async function updateBucketPolicy(bucketName, distributionId) {
@@ -87567,10 +87568,11 @@ async function setupS3Bucket(bucketName) {
 exports.setupS3Bucket = setupS3Bucket;
 async function putObject(bucketName, key, filePath) {
     const mineType = mime_types_1.default.lookup(filePath) || "application/octet-stream";
+    const fileBuffer = (0, fs_1.readFileSync)(filePath);
     const params = {
         Bucket: bucketName,
         Key: key,
-        Body: filePath,
+        Body: fileBuffer,
         ContentType: mineType,
     };
     await client.send(new client_s3_1.PutObjectCommand(params));

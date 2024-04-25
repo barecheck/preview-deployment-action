@@ -16,10 +16,10 @@ function handler(event) {
   // Check whether the URI is missing a file name.
   if (uri.endsWith("/")) {
     request.uri = `/${subDomain}${uri}index.html`
-  }
-  // Check whether the URI is missing a file extension.
-  else if (!uri.includes(".")) {
+  } else if (uri.includes(".")) {
     request.uri = `/${subDomain}${uri}`
+  } else {
+    request.uri = `/${subDomain}/404.html`
   }
 
   console.log("request.uri")
