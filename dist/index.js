@@ -87219,6 +87219,7 @@ async function findHostedZone(domainName) {
 async function findRoute53Record(zoneId, recordName) {
     const command = new client_route_53_1.ListResourceRecordSetsCommand({
         HostedZoneId: zoneId,
+        StartRecordName: recordName,
     });
     const response = await client.send(command);
     const record = response.ResourceRecordSets?.find(({ Name }) => Name === recordName);
