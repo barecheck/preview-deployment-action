@@ -1,5 +1,10 @@
 # Preview deployment action
 
+> [!WARNING]  
+> The action is in testing and it's not recommended to use in production environments.
+
+The work you can find here is inspired by Vercel Preview deployments and this is an attempt to create great Pull requests review experience if you are already deploying your website to AWS S3.
+
 Github Action to deploy your static website on AWS S3. The action is only
 availabke to use as part of your Pull request workflow and does the following:
 
@@ -27,24 +32,3 @@ steps:
          AWS_CLOUDFRONT_CERTIFICATE_ARN: ${{ secrets.AWS_CLOUDFRONT_CERTIFICATE_ARN }}
          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 ```
-
-## Publishing a New Release
-
-This project includes a helper script, [`script/release`](./script/release)
-designed to streamline the process of tagging and pushing new releases for
-GitHub Actions.
-
-GitHub Actions allows users to select a specific version of the action to use,
-based on release tags. This script simplifies this process by performing the
-following steps:
-
-1. **Retrieving the latest release tag:** The script starts by fetching the most
-   recent release tag by looking at the local data available in your repository.
-1. **Prompting for a new release tag:** The user is then prompted to enter a new
-   release tag. To assist with this, the script displays the latest release tag
-   and provides a regular expression to validate the format of the new tag.
-1. **Tagging the new release:** Once a valid new tag is entered, the script tags
-   the new release.
-1. **Pushing the new tag to the remote:** Finally, the script pushes the new tag
-   to the remote repository. From here, you will need to create a new release in
-   GitHub and users can easily reference the new tag in their workflows.
