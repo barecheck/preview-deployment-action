@@ -20,6 +20,10 @@ inputs:
     required: true
     default: "example.com"
 
+outputs:
+  url:
+    description: "Preview deployment URL"
+
 runs:
   using: node20
   main: dist/index.js

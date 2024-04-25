@@ -7,7 +7,7 @@ import {
   RRType,
 } from "@aws-sdk/client-route-53"
 
-import { appName } from "../config"
+import { getAppName } from "../config"
 
 const client = new Route53Client()
 
@@ -43,6 +43,7 @@ export async function createRoute53Record({
   recordName,
   routeTrafficTo,
 }: createRoute53RecordParams) {
+  const appName = getAppName()
   const hostedZone = await findHostedZone(domainName)
   if (!hostedZone || !hostedZone.Id) {
     throw new Error(`Hosted zone not found for ${domainName}`)

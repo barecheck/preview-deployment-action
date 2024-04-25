@@ -27,7 +27,7 @@ import {
 } from "@aws-sdk/client-cloudfront"
 import { readFileSync } from "fs"
 
-import { appName, domainName } from "../config"
+import { getAppName, getBuidDir, aws } from "../config"
 import path from "path"
 
 const client = new CloudFrontClient()
@@ -37,6 +37,9 @@ function getDefaultDistributionInput(
   originAccessControlId: string,
   cloudfrontFunctionArn: string,
 ) {
+  const appName = getAppName()
+  const domainName = getBuidDir()
+
   const defaultDistributionInput = {
     DistributionConfig: {
       CallerReference: appName,
@@ -132,10 +135,7 @@ function getDefaultDistributionInput(
       },
       ViewerCertificate: {
         CloudFrontDefaultCertificate: false,
-        // TODO: Find a way to create the certificate
-        // As of now, the certificate is created manually and pased with other parameters
-        ACMCertificateArn:
-          "arn:aws:acm:us-east-1:483206745547:certificate/d77981ea-4463-49ee-9853-bb8ef3114b1c",
+        ACMCertificateArn: aws.cloudfrontCertificateArn,
         CertificateSource: CertificateSource.acm,
         SSLSupportMethod: SSLSupportMethod.sni_only,
         MinimumProtocolVersion: MinimumProtocolVersion.TLSv1,
@@ -233,6 +233,7 @@ async function publishCloudfrontFunction(
 }
 
 async function createCloudfrontFunction() {
+  const appName = getAppName()
   const functionName = `${appName}PreviewDeploymentFunction`
 
   const cloudfrontFunc = await getCloudfrontFunc(functionName)
