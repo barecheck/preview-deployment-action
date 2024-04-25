@@ -87219,10 +87219,11 @@ async function findHostedZone(domainName) {
 async function findRoute53Record(zoneId, recordName) {
     const command = new client_route_53_1.ListResourceRecordSetsCommand({
         HostedZoneId: zoneId,
-        StartRecordName: recordName,
+        // TODO: Add pagination or Use GET method
+        MaxItems: Number(200),
     });
     const response = await client.send(command);
-    const record = response.ResourceRecordSets?.find(({ Name }) => Name === recordName);
+    const record = response.ResourceRecordSets?.find(({ Name }) => Name === `${recordName}.`);
     return record;
 }
 async function createRoute53Record({ domainName, recordName, routeTrafficTo, }) {

@@ -11,7 +11,7 @@ async function createInfra() {
   const bucketName = `${appName}-preview-deployment`
   const originId = `${bucketName}.s3.us-east-1.amazonaws.com`
   // Subdomain should be PR ID + preview
-  const subDomain = "preview"
+  const subDomain = "preview-2"
 
   await setupS3Bucket(bucketName)
   const cloudfront = await createCloudfront(originId)
