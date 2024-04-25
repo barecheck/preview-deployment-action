@@ -1,9 +1,16 @@
 import {
   CloudFrontClient,
+  GetDistributionCommand,
   CreateDistributionCommand,
+  // UpdateDistributionCommand,
   ListDistributionsCommand,
   ListOriginAccessControlsCommand,
   CreateOriginAccessControlCommand,
+  CreateFunctionCommand,
+  UpdateFunctionCommand,
+  PublishFunctionCommand,
+  ListFunctionsCommand,
+  GetFunctionCommand,
   ViewerProtocolPolicy,
   Method,
   GeoRestrictionType,
@@ -15,15 +22,20 @@ import {
   OriginAccessControlSigningProtocols,
   OriginAccessControlSigningBehaviors,
   OriginAccessControlOriginTypes,
+  FunctionRuntime,
+  EventType,
 } from "@aws-sdk/client-cloudfront"
+import { readFileSync } from "fs"
 
 import { appName, domainName } from "../config"
+import path from "path"
 
 const client = new CloudFrontClient()
 
 function getDefaultDistributionInput(
   originId: string,
   originAccessControlId: string,
+  cloudfrontFunctionArn: string,
 ) {
   const defaultDistributionInput = {
     DistributionConfig: {
@@ -66,6 +78,16 @@ function getDefaultDistributionInput(
         ViewerProtocolPolicy: ViewerProtocolPolicy.redirect_to_https,
         LambdaFunctionAssociations: {
           Quantity: Number(0),
+          Items: [],
+        },
+        FunctionAssociations: {
+          Quantity: Number(1),
+          Items: [
+            {
+              FunctionARN: cloudfrontFunctionArn,
+              EventType: EventType.viewer_request,
+            },
+          ],
         },
         AllowedMethods: {
           Quantity: Number(7),
@@ -128,8 +150,14 @@ function getDefaultDistributionInput(
 export async function getCloudfrontByOrigin(originId: string) {
   const distributions = await client.send(new ListDistributionsCommand())
 
-  const distribution = distributions.DistributionList?.Items?.find(
+  const distributionId = distributions.DistributionList?.Items?.find(
     (item) => item.Origins?.Items?.[0]?.DomainName === originId,
+  )?.Id
+
+  if (!distributionId) return
+
+  const distribution = await client.send(
+    new GetDistributionCommand({ Id: distributionId }),
   )
 
   return distribution
@@ -139,11 +167,6 @@ async function getOriginAccessControl(originId: string) {
   const originAccessControls = await client.send(
     new ListOriginAccessControlsCommand(),
   )
-
-  const names = originAccessControls.OriginAccessControlList?.Items?.map(
-    (item) => item.Name,
-  )
-  console.log("Origin Access Controls:", names)
 
   const originAccessControl =
     originAccessControls.OriginAccessControlList?.Items?.find(
@@ -175,35 +198,132 @@ async function getOriginAccessControl(originId: string) {
   return originAccessControlId
 }
 
-export async function createCloudfront(originId: string) {
-  const distribution = await getCloudfrontByOrigin(originId)
-  console.log("Cloudfront Exists:", distribution?.Id)
+async function getCloudfrontFunc(functionName: string) {
+  const functions = await client.send(new ListFunctionsCommand())
 
-  if (!distribution || !distribution.Id || !distribution.DomainName) {
-    const originAccessControlId = await getOriginAccessControl(originId)
+  const cloudfrontFunction = functions.FunctionList?.Items?.find(
+    (item) => item.Name === functionName,
+  )
 
-    const distributionInput = getDefaultDistributionInput(
-      originId,
-      originAccessControlId,
+  if (!cloudfrontFunction) return
+
+  const func = await client.send(new GetFunctionCommand({ Name: functionName }))
+
+  return {
+    arn: cloudfrontFunction?.FunctionMetadata?.FunctionARN,
+    version: func.ETag,
+  }
+}
+
+async function publishCloudfrontFunction(
+  functionName: string,
+  version: string,
+) {
+  const publishFunctionParams = {
+    IfMatch: version,
+    Name: functionName,
+  }
+  const res = await client.send(
+    new PublishFunctionCommand(publishFunctionParams),
+  )
+
+  const publishedArn = res.FunctionSummary?.FunctionMetadata?.FunctionARN
+
+  console.log("Published Cloudfront Function:", functionName)
+
+  return publishedArn || ""
+}
+
+async function createCloudfrontFunction() {
+  const functionName = `${appName}PreviewDeploymentFunction`
+
+  const cloudfrontFunc = await getCloudfrontFunc(functionName)
+
+  const cloudfrontFuncPath = path.join(__dirname, "cloudfront-function.js")
+  const functionCode = readFileSync(cloudfrontFuncPath)
+  const functionParams = {
+    Name: functionName,
+    FunctionConfig: {
+      Comment: `Function for ${appName} Preview Deployments`,
+      Runtime: FunctionRuntime.cloudfront_js_2_0,
+      KeyValueStoreAssociations: {
+        Quantity: Number(0),
+      },
+    },
+    FunctionCode: functionCode,
+  }
+
+  if (!cloudfrontFunc) {
+    const functionData = await client.send(
+      new CreateFunctionCommand(functionParams),
+    )
+    const createdFunctionArn =
+      functionData?.FunctionSummary?.FunctionMetadata?.FunctionARN
+
+    if (!createdFunctionArn)
+      throw new Error("Couldn't create Cloudfront function")
+
+    console.log("Created Cloudfront Function:", functionName)
+    const publishedArn = await publishCloudfrontFunction(
+      functionName,
+      functionData.ETag || "",
+    )
+    return publishedArn
+  } else {
+    console.log("Cloudfront Function already exists")
+    const res = await client.send(
+      new UpdateFunctionCommand({
+        Name: functionName,
+        IfMatch: cloudfrontFunc.version,
+        FunctionConfig: functionParams.FunctionConfig,
+        FunctionCode: functionParams.FunctionCode,
+      }),
+    )
+    console.log("Updated Cloudfront Function:", functionName)
+
+    const publishedArn = await publishCloudfrontFunction(
+      functionName,
+      res.ETag || "",
     )
 
+    return publishedArn
+  }
+}
+
+export async function createCloudfront(originId: string) {
+  const distributionFound = await getCloudfrontByOrigin(originId)
+  const originAccessControlId = await getOriginAccessControl(originId)
+  const cloudfrontFunctionArn = await createCloudfrontFunction()
+
+  const distributionInput = getDefaultDistributionInput(
+    originId,
+    originAccessControlId,
+    cloudfrontFunctionArn,
+  )
+
+  let distribution
+
+  if (!distributionFound) {
     const command = new CreateDistributionCommand(distributionInput)
     const res = await client.send(command)
-    const createdDistribution = res.Distribution
-    if (
-      !createdDistribution ||
-      !createdDistribution.Id ||
-      !createdDistribution.DomainName
-    )
-      throw new Error("Cloudfront distribution not created")
-
-    console.log("Cloudfront created:", createdDistribution.Id)
-
-    return {
-      id: createdDistribution.Id,
-      domainName: createdDistribution.DomainName,
-    }
+    distribution = res.Distribution
+  } else {
+    console.log("Updating Cloudfront Distribution", {
+      id: distributionFound.Distribution?.Id,
+      eTag: distributionFound.ETag,
+    })
+    // TODO: Ability to update Cloudfront distribution
+    // const command = new UpdateDistributionCommand({
+    //   Id: distributionFound?.Distribution?.Id,
+    //   IfMatch: distributionFound?.ETag,
+    //   DistributionConfig: distributionInput.DistributionConfig,
+    // })
+    // const res = await client.send(command)
+    distribution = distributionFound?.Distribution
   }
+
+  if (!distribution || !distribution.Id || !distribution.DomainName)
+    throw new Error("Cloudfront distribution doesn't exist")
 
   return {
     id: distribution.Id,
