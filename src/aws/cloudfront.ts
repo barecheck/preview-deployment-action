@@ -136,7 +136,7 @@ function getDefaultDistributionInput(
           "arn:aws:acm:us-east-1:483206745547:certificate/d77981ea-4463-49ee-9853-bb8ef3114b1c",
         CertificateSource: CertificateSource.acm,
         SSLSupportMethod: SSLSupportMethod.sni_only,
-        MinimumProtocolVersion: MinimumProtocolVersion.TLSv1_2016,
+        MinimumProtocolVersion: MinimumProtocolVersion.TLSv1,
       },
       AlternateDomainNames: {
         Quantity: Number(1),
