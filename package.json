@@ -72,12 +72,14 @@
     "@aws-sdk/client-cloudfront": "^3.556.0",
     "@aws-sdk/client-route-53": "^3.556.0",
     "@aws-sdk/client-s3": "^3.556.0",
-    "dotenv": "^16.4.5"
+    "dotenv": "^16.4.5",
+    "recursive-readdir": "^2.2.3"
   },
   "devDependencies": {
     "@jest/globals": "^29.7.0",
     "@types/jest": "^29.5.12",
     "@types/node": "^20.12.7",
+    "@types/recursive-readdir": "^2.2.4",
     "@typescript-eslint/eslint-plugin": "^7.7.0",
     "@typescript-eslint/parser": "^7.7.0",
     "@vercel/ncc": "^0.38.1",

@@ -1,6 +1,6 @@
 import "dotenv/config"
 import { createCloudfront } from "./aws/cloudfront"
-import { setupS3Bucket, updateBucketPolicy } from "./aws/s3"
+import { setupS3Bucket, updateBucketPolicy, syncFiles } from "./aws/s3"
 import { createRoute53Record } from "./aws/route53"
 import { appName, domainName } from "./config"
 
@@ -21,6 +21,12 @@ async function createInfra() {
     domainName,
     recordName: `${subDomain}.${domainName}`,
     routeTrafficTo: cloudfront.domainName,
+  })
+
+  await syncFiles({
+    bucketName,
+    prefix: subDomain,
+    directory: "example",
   })
 }
 

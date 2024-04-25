@@ -3,7 +3,12 @@ import {
   CreateBucketCommand,
   PutBucketPolicyCommand,
   ListBucketsCommand,
+  PutObjectCommand,
+  DeleteObjectCommand,
 } from "@aws-sdk/client-s3"
+import path from "path"
+import readdir from "recursive-readdir"
+
 import { aws } from "../config"
 
 const client = new S3Client({ region: aws.region })
@@ -77,4 +82,64 @@ export async function setupS3Bucket(bucketName: string) {
   }
 
   return bucketName
+}
+
+async function putObject(bucketName: string, key: string, filePath: string) {
+  const params = {
+    Bucket: bucketName,
+    Key: key,
+    Body: filePath,
+  }
+
+  await client.send(new PutObjectCommand(params))
+  console.log("Object Uploaded:", {
+    bucketName,
+    key,
+    filePath,
+  })
+}
+
+async function deleteObjects(bucketName: string, prefix: string) {
+  const params = {
+    Bucket: bucketName,
+    Key: prefix,
+  }
+  await client.send(new DeleteObjectCommand(params))
+
+  console.log("Objects Deleted:", { bucketName, prefix })
+}
+
+function filePathToS3Key(filePath: string) {
+  return filePath.replace(/^(\\|\/)+/g, "").replace(/\\/g, "/")
+}
+
+type SyncFilesParams = {
+  bucketName: string
+  prefix: string
+  directory: string
+}
+
+export async function syncFiles({
+  bucketName,
+  prefix,
+  directory,
+}: SyncFilesParams) {
+  await deleteObjects(bucketName, prefix)
+
+  const normalizedPath = path.normalize(directory)
+  const files = await readdir(normalizedPath)
+
+  const uploadedObjects = await Promise.all(
+    files.map(async (filePath) => {
+      const relativeFilepath = filePath.replace(normalizedPath, "")
+      const s3Key = `${prefix}/${filePathToS3Key(relativeFilepath)}`
+
+      console.log(`Uploading ${s3Key} to ${bucketName}`)
+
+      const object = await putObject(bucketName, s3Key, filePath)
+      return object
+    }),
+  )
+
+  return uploadedObjects
 }
