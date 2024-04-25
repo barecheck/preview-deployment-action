@@ -1,23 +1,24 @@
 name: "Preview Deployment Action"
-description: "Provide a description here"
-author: "Your name or organization here"
+description: "Generate Preview deployments URLs for Pull Requests using AWS S3 and CloudFront."
+author: "Barecheck"
 
-# Add your action's branding here. This will appear on the GitHub Marketplace.
 branding:
-  icon: "heart"
-  color: "red"
+  icon: "upload-cloud"
+  color: "yellow"
 
-# Define your inputs here.
 inputs:
-  milliseconds:
-    description: "Your input description here"
+  build-dir:
+    description: "Build directory with static files"
     required: true
-    default: "1000"
-
-# Define your outputs here.
-outputs:
-  time:
-    description: "Your output description here"
+    default: "dist"
+  app-name:
+    description: "Application name that will be part of AWS resources names"
+    required: true
+    default: "my-app"
+  domain:
+    description: "Application domain name (e.g. example.com). Preview URLs will add Pull Request number as a subdomain."
+    required: true
+    default: "example.com"
 
 runs:
   using: node20
