@@ -29,7 +29,7 @@ function getDefaultDistributionInput(
     DistributionConfig: {
       CallerReference: appName,
       Aliases: {
-        Quantity: Number(0) // required
+        Quantity: Number(0)
       },
       Origins: {
         Quantity: Number(1),
@@ -107,10 +107,14 @@ function getDefaultDistributionInput(
         }
       },
       ViewerCertificate: {
-        CloudFrontDefaultCertificate: true,
-        MinimumProtocolVersion: MinimumProtocolVersion.TLSv1,
-        SSLSupportMethod: SSLSupportMethod.vip,
-        CertificateSource: CertificateSource.cloudfront
+        CloudFrontDefaultCertificate: false,
+        // TODO: Find a way to create the certificate
+        // As of now, the certificate is created manually and pased with other parameters
+        ACMCertificateArn:
+          'arn:aws:acm:us-east-1:483206745547:certificate/d77981ea-4463-49ee-9853-bb8ef3114b1c',
+        CertificateSource: CertificateSource.acm,
+        SSLSupportMethod: SSLSupportMethod.sni_only,
+        MinimumProtocolVersion: MinimumProtocolVersion.TLSv1_2016
       }
     }
   }
@@ -124,7 +128,7 @@ export async function getCloudfrontByOrigin(originId: string) {
     item => item.Origins?.Items?.[0]?.DomainName === originId
   )
 
-  return distribution?.Id
+  return distribution
 }
 
 async function getOriginAccessControl(originId: string) {
@@ -170,10 +174,10 @@ async function getOriginAccessControl(originId: string) {
 }
 
 export async function createCloudfront(originId: string) {
-  const distributionId = await getCloudfrontByOrigin(originId)
-  console.log('Cloudfront Exists:', distributionId)
+  const distribution = await getCloudfrontByOrigin(originId)
+  console.log('Cloudfront Exists:', distribution?.Id)
 
-  if (!distributionId) {
+  if (!distribution || !distribution.Id || !distribution.DomainName) {
     const originAccessControlId = await getOriginAccessControl(originId)
 
     const distributionInput = getDefaultDistributionInput(
@@ -183,10 +187,24 @@ export async function createCloudfront(originId: string) {
 
     const command = new CreateDistributionCommand(distributionInput)
     const res = await client.send(command)
-    const createdDistribution = res.Distribution?.Id || ''
-    console.log('Cloudfront created:', createdDistribution)
-    return createdDistribution
+    const createdDistribution = res.Distribution
+    if (
+      !createdDistribution ||
+      !createdDistribution.Id ||
+      !createdDistribution.DomainName
+    )
+      throw new Error('Cloudfront distribution not created')
+
+    console.log('Cloudfront created:', createdDistribution.Id)
+
+    return {
+      id: createdDistribution.Id,
+      domainName: createdDistribution.DomainName
+    }
   }
 
-  return distributionId
+  return {
+    id: distribution.Id,
+    domainName: distribution.DomainName
+  }
 }

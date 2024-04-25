@@ -4,3 +4,4 @@ export const aws = {
   region: process.env.AWS_REGION || 'us-east-1',
   accountId: process.env.AWS_ACCOUNT_ID as string
 }
+export const domainName = process.env.DOMAIN_NAME || 'barecheck.com'
