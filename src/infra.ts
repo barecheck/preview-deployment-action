@@ -1,14 +1,14 @@
-import 'dotenv/config'
-import { createCloudfront } from './aws/cloudfront'
-import { setupS3Bucket, updateBucketPolicy } from './aws/s3'
-import { createRoute53Record } from './aws/route53'
-import { appName, domainName } from './config'
+import "dotenv/config"
+import { createCloudfront } from "./aws/cloudfront"
+import { setupS3Bucket, updateBucketPolicy } from "./aws/s3"
+import { createRoute53Record } from "./aws/route53"
+import { appName, domainName } from "./config"
 
 async function createInfra() {
   const bucketName = `${appName}-preview-deployment`
   const originId = `${bucketName}.s3.us-east-1.amazonaws.com`
   // Subdomain should be PR ID + preview
-  const subDomain = 'preview'
+  const subDomain = "preview"
 
   await setupS3Bucket(bucketName)
   const cloudfront = await createCloudfront(originId)
@@ -20,7 +20,7 @@ async function createInfra() {
   await createRoute53Record({
     domainName,
     recordName: `${subDomain}.${domainName}`,
-    routeTrafficTo: cloudfront.domainName
+    routeTrafficTo: cloudfront.domainName,
   })
 }
 
