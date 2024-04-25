@@ -40,8 +40,10 @@ function getDefaultDistributionInput(
   const defaultDistributionInput = {
     DistributionConfig: {
       CallerReference: appName,
+
       Aliases: {
-        Quantity: Number(0),
+        Quantity: Number(1),
+        Items: [`*.${domainName}`],
       },
       Origins: {
         Quantity: Number(1),
@@ -137,10 +139,6 @@ function getDefaultDistributionInput(
         CertificateSource: CertificateSource.acm,
         SSLSupportMethod: SSLSupportMethod.sni_only,
         MinimumProtocolVersion: MinimumProtocolVersion.TLSv1,
-      },
-      AlternateDomainNames: {
-        Quantity: Number(1),
-        Items: [`*.${domainName}`],
       },
     },
   }
