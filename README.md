@@ -10,30 +10,22 @@ availabke to use as part of your Pull request workflow and does the following:
 
 ## Usage
 
-After testing, you can create version tag(s) that developers can use to
-reference different stable versions of your action. For more information, see
-[Versioning](https://github.com/actions/toolkit/blob/master/docs/action-versioning.md)
-in the GitHub Actions toolkit.
-
-To include the action in a workflow in another repository, you can use the
-`uses` syntax with the `@` symbol to reference a specific branch, tag, or commit
-hash.
-
 ```yaml
 steps:
-  - name: Checkout
-    id: checkout
-    uses: actions/checkout@v4
-
-  - name: Test Local Action
-    id: test-action
-    uses: actions/typescript-action@v1 # Commit with the `v1` tag
-    with:
-      milliseconds: 1000
-
-  - name: Print Output
-    id: output
-    run: echo "${{ steps.test-action.outputs.time }}"
+   - name: Run deployment preview
+      id: s3-preview-deployment-action
+      uses: @barecheck/preview-deployment-action@v1
+      with:
+         build-dir: ./example
+         app-name: YOUR_APP_NAME
+         domain: YOUR_DOMAIN
+      env:
+         AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+         AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+         AWS_REGION: ${{ secrets.AWS_REGION }}
+         AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
+         AWS_CLOUDFRONT_CERTIFICATE_ARN: ${{ secrets.AWS_CLOUDFRONT_CERTIFICATE_ARN }}
+         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 ```
 
 ## Publishing a New Release
