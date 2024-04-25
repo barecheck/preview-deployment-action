@@ -24958,7 +24958,7 @@ const wait_1 = __nccwpck_require__(5259);
  */
 async function run() {
     try {
-        const ms = core.getInput('milliseconds');
+        const ms = core.getInput("milliseconds");
         // Debug logs are only output if the `ACTIONS_STEP_DEBUG` secret is true
         core.debug(`Waiting ${ms} milliseconds ...`);
         // Log the current timestamp, wait, then log the new timestamp
@@ -24966,7 +24966,7 @@ async function run() {
         await (0, wait_1.wait)(parseInt(ms, 10));
         core.debug(new Date().toTimeString());
         // Set outputs for other workflow steps to use
-        core.setOutput('time', new Date().toTimeString());
+        core.setOutput("time", new Date().toTimeString());
     }
     catch (error) {
         // Fail the workflow run if an error occurs
@@ -24992,11 +24992,11 @@ exports.wait = void 0;
  * @returns {Promise<string>} Resolves with 'done!' after the wait is over.
  */
 async function wait(milliseconds) {
-    return new Promise(resolve => {
+    return new Promise((resolve) => {
         if (isNaN(milliseconds)) {
-            throw new Error('milliseconds not a number');
+            throw new Error("milliseconds not a number");
         }
-        setTimeout(() => resolve('done!'), milliseconds);
+        setTimeout(() => resolve("done!"), milliseconds);
     });
 }
 exports.wait = wait;
