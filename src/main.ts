@@ -12,7 +12,6 @@ import { getAppName, getBuidDir, getDomainName } from "./config"
  */
 export async function run(): Promise<void> {
   try {
-    console.log("Running action with context:", context)
     const buildDir = getBuidDir()
     const appName = getAppName()
     const domainName = getDomainName()

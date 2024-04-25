@@ -87219,9 +87219,11 @@ async function findHostedZone(domainName) {
 async function findRoute53Record(zoneId, recordName) {
     const command = new client_route_53_1.ListResourceRecordSetsCommand({
         HostedZoneId: zoneId,
+        // TODO: Add pagination or Use GET method
+        MaxItems: Number(200),
     });
     const response = await client.send(command);
-    const record = response.ResourceRecordSets?.find(({ Name }) => Name === recordName);
+    const record = response.ResourceRecordSets?.find(({ Name }) => Name === `${recordName}.`);
     return record;
 }
 async function createRoute53Record({ domainName, recordName, routeTrafficTo, }) {
@@ -87397,11 +87399,11 @@ exports.syncFiles = syncFiles;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.aws = exports.getDomainName = exports.getBuidDir = exports.getAppName = void 0;
 const core_1 = __nccwpck_require__(2186);
-const getAppName = () => (0, core_1.getInput)("app-name");
+const getAppName = () => (0, core_1.getInput)("app-name") || process.env.APP_NAME;
 exports.getAppName = getAppName;
-const getBuidDir = () => (0, core_1.getInput)("build-dir");
+const getBuidDir = () => (0, core_1.getInput)("build-dir") || process.env.BUILD_DIR;
 exports.getBuidDir = getBuidDir;
-const getDomainName = () => (0, core_1.getInput)("domain");
+const getDomainName = () => (0, core_1.getInput)("domain") || process.env.DOMAIN;
 exports.getDomainName = getDomainName;
 exports.aws = {
     region: process.env.AWS_REGION,
@@ -87455,7 +87457,6 @@ const config_1 = __nccwpck_require__(6373);
  */
 async function run() {
     try {
-        console.log("Running action with context:", github_1.context);
         const buildDir = (0, config_1.getBuidDir)();
         const appName = (0, config_1.getAppName)();
         const domainName = (0, config_1.getDomainName)();

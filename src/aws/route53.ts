@@ -23,11 +23,13 @@ async function findHostedZone(domainName: string) {
 async function findRoute53Record(zoneId: string, recordName: string) {
   const command = new ListResourceRecordSetsCommand({
     HostedZoneId: zoneId,
+    // TODO: Add pagination or Use GET method
+    MaxItems: Number(200),
   })
   const response = await client.send(command)
 
   const record = response.ResourceRecordSets?.find(
-    ({ Name }) => Name === recordName,
+    ({ Name }) => Name === `${recordName}.`,
   )
 
   return record
