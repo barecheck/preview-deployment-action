@@ -8,6 +8,7 @@ import {
 } from "@aws-sdk/client-s3"
 import path from "path"
 import readdir from "recursive-readdir"
+import mimeTypes from "mime-types"
 
 import { aws } from "../config"
 
@@ -85,10 +86,12 @@ export async function setupS3Bucket(bucketName: string) {
 }
 
 async function putObject(bucketName: string, key: string, filePath: string) {
+  const mineType = mimeTypes.lookup(filePath) || "application/octet-stream"
   const params = {
     Bucket: bucketName,
     Key: key,
     Body: filePath,
+    ContentType: mineType,
   }
 
   await client.send(new PutObjectCommand(params))
