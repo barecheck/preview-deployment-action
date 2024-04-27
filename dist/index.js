@@ -87671,6 +87671,19 @@ const cloudfront_1 = __nccwpck_require__(1925);
 const s3_1 = __nccwpck_require__(3830);
 const route53_1 = __nccwpck_require__(9625);
 const config_1 = __nccwpck_require__(6373);
+async function createAwsResources({ bucketName, domainName, previewSubDomain, }) {
+    // TODO: Ability to give custom region for S3 bucket
+    const originId = `${bucketName}.s3.us-east-1.amazonaws.com`;
+    await (0, s3_1.setupS3Bucket)(bucketName);
+    const cloudfront = await (0, cloudfront_1.createCloudfront)(originId);
+    await (0, s3_1.updateBucketPolicy)(bucketName, cloudfront.id);
+    await (0, route53_1.createRoute53Record)({
+        domainName,
+        recordName: `${previewSubDomain}.${domainName}`,
+        routeTrafficTo: cloudfront.domainName,
+    });
+    return cloudfront;
+}
 /**
  * The main function for the action.
  * @returns {Promise<void>} Resolves when the action is complete.
@@ -87681,28 +87694,21 @@ async function run() {
         const appName = (0, config_1.getAppName)();
         const domainName = (0, config_1.getDomainName)();
         const pullRequestNumber = github_1.context.payload.pull_request?.number;
-        const subDomain = pullRequestNumber
+        const previewSubDomain = pullRequestNumber
             ? `preview-${pullRequestNumber}`
             : "preview";
         const bucketName = `${appName}-preview-deployment`;
-        const originId = `${bucketName}.s3.us-east-1.amazonaws.com`;
-        // TODO: Refactor so infra setup is called only once.
-        // S3 bucket could store metadata about the deployment and be used to check if the infra is already setup.
-        // The bucket could also store Cloudfront distribution ID and Route53 record IDs for easy cleanup.
-        await (0, s3_1.setupS3Bucket)(bucketName);
-        const cloudfront = await (0, cloudfront_1.createCloudfront)(originId);
-        await (0, s3_1.updateBucketPolicy)(bucketName, cloudfront.id);
-        await (0, route53_1.createRoute53Record)({
+        await createAwsResources({
+            bucketName,
             domainName,
-            recordName: `${subDomain}.${domainName}`,
-            routeTrafficTo: cloudfront.domainName,
+            previewSubDomain,
         });
         await (0, s3_1.syncFiles)({
             bucketName,
-            prefix: subDomain,
+            prefix: previewSubDomain,
             directory: buildDir,
         });
-        core.setOutput("url", `https://${subDomain}.${domainName}`);
+        core.setOutput("url", `https://${previewSubDomain}.${domainName}`);
     }
     catch (error) {
         // Fail the workflow run if an error occurs
