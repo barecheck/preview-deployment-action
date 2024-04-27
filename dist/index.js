@@ -87701,6 +87701,14 @@ async function run() {
             ? `preview-${pullRequestNumber}`
             : "preview";
         const bucketName = `${appName}-preview-deployment`;
+        console.log("Input Params", {
+            buildDir,
+            appName,
+            domainName,
+            pullRequestNumber,
+            previewSubDomain,
+            bucketName,
+        });
         await createAwsResources({
             bucketName,
             domainName,

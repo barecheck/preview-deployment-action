@@ -21,7 +21,7 @@ steps:
       id: s3-preview-deployment-action
       uses: barecheck/preview-deployment-action@v1
       with:
-         build-dir: ./example
+         build-dir: YOUR_STATIC_DIR_OUTPUT
          app-name: YOUR_APP_NAME
          domain: YOUR_DOMAIN
       env:
