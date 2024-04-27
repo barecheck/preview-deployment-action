@@ -98,11 +98,6 @@ async function putObject(bucketName: string, key: string, filePath: string) {
   }
 
   await client.send(new PutObjectCommand(params))
-  console.log("Object Uploaded:", {
-    bucketName,
-    key,
-    filePath,
-  })
 }
 
 async function deleteObjects(bucketName: string, prefix: string) {
@@ -135,14 +130,15 @@ export async function syncFiles({
   const normalizedPath = path.normalize(directory)
   const files = await readdir(normalizedPath)
 
+  console.log(`Syncing ${files.length} files to S3...`)
+
   const uploadedObjects = await Promise.all(
     files.map(async (filePath) => {
       const relativeFilepath = filePath.replace(normalizedPath, "")
       const s3Key = `${prefix}/${filePathToS3Key(relativeFilepath)}`
 
-      console.log(`Uploading ${s3Key} to ${bucketName}`)
-
       const object = await putObject(bucketName, s3Key, filePath)
+      console.log(filePath)
       return object
     }),
   )

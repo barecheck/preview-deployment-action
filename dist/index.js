@@ -87382,9 +87382,6 @@ async function createCloudfront(originId) {
     const originAccessControlId = await getOriginAccessControl(originId);
     const cloudfrontFunctionArn = await createCloudfrontFunction();
     const distributionInput = getDefaultDistributionInput(originId, originAccessControlId, cloudfrontFunctionArn);
-    console.log("Creating Cloudfront Distribution", distributionInput);
-    console.log("Creating Cloudfront Distribution Aliases", distributionInput.DistributionConfig.Aliases);
-    console.log("Creating Cloudfront Distribution Origins", distributionInput.DistributionConfig.Origins);
     let distribution;
     if (!distributionFound) {
         const command = new client_cloudfront_1.CreateDistributionCommand(distributionInput);
@@ -87579,11 +87576,6 @@ async function putObject(bucketName, key, filePath) {
         ContentType: mineType,
     };
     await client.send(new client_s3_1.PutObjectCommand(params));
-    console.log("Object Uploaded:", {
-        bucketName,
-        key,
-        filePath,
-    });
 }
 async function deleteObjects(bucketName, prefix) {
     const params = {
@@ -87600,11 +87592,12 @@ async function syncFiles({ bucketName, prefix, directory, }) {
     await deleteObjects(bucketName, prefix);
     const normalizedPath = path_1.default.normalize(directory);
     const files = await (0, recursive_readdir_1.default)(normalizedPath);
+    console.log(`Syncing ${files.length} files to S3...`);
     const uploadedObjects = await Promise.all(files.map(async (filePath) => {
         const relativeFilepath = filePath.replace(normalizedPath, "");
         const s3Key = `${prefix}/${filePathToS3Key(relativeFilepath)}`;
-        console.log(`Uploading ${s3Key} to ${bucketName}`);
         const object = await putObject(bucketName, s3Key, filePath);
+        console.log(filePath);
         return object;
     }));
     return uploadedObjects;
