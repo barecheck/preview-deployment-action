@@ -10,6 +10,7 @@ export async function createDeployment() {
   const owner = context.repo.owner
   const repo = context.repo.repo
   const branchName = context.payload.pull_request?.head.ref
+  console.log("Pull request context", context.payload.pull_request)
 
   if (!branchName) {
     console.log(

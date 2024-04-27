@@ -87649,6 +87649,7 @@ async function createDeployment() {
     const owner = github_1.context.repo.owner;
     const repo = github_1.context.repo.repo;
     const branchName = github_1.context.payload.pull_request?.head.ref;
+    console.log("Pull request context", github_1.context.payload.pull_request);
     if (!branchName) {
         console.log("No branch name found in the payload. Skipping deployment creation.");
         const res = await octokit.request("POST /repos/{owner}/{repo}/deployments", {
