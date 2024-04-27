@@ -6,7 +6,7 @@ import {
   setupS3Bucket,
   syncFiles,
   updateBucketPolicy,
-  deleteObjects,
+  deleteObjectsByPrefix,
 } from "./aws/s3"
 import { createRoute53Record, deleteRoute53Record } from "./aws/route53"
 import {
@@ -91,7 +91,7 @@ async function deletePreviewEnvironment({
   bucketName,
   branchName,
 }: EnvironmentActionParams) {
-  await deleteObjects(bucketName, environment)
+  await deleteObjectsByPrefix(bucketName, environment)
   await deleteDeployments(environment, branchName)
   await deleteRoute53Record({
     domainName: getDomainName(),
