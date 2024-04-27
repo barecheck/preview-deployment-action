@@ -12,8 +12,16 @@ availabke to use as part of your Pull request workflow and does the following:
 - Create AWS S3 Bucket (one for all preview deployments)
 - Create Route53 and Cloudfront links based on Pull request name
 - Sync build folder and S3 content
+- Integrate with GitHub deployments for better developer experience
 
 ## Usage
+
+To quickly start with action:
+
+- Copy the file provided below to `.github/workflows`
+- Replace parameters with your own ones
+- If you need to build static files, just add steps before calling `preview-deployment-action`
+- Add AWS access keys as Github Secrets. They are needed to create Route53, Cloudfront, S3 resources.
 
 ```yaml
 name: Preview Deployment
@@ -30,15 +38,21 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
-      - name: Use Node.js v20.9.0
-        uses: actions/setup-node@v1
-        with:
-          node-version: v20.9.0
+      - name: Checkout
+        id: checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        id: setup-node
+        uses: actions/setup-node@v4
+
+      #
+      # YOUR APPLICATION BUILD STEPS ARE HERE
+      #
 
       - name: Run deployment preview
         id: s3-preview-deployment-action
-        uses: ./
+        uses: barecheck/preview-deployment-action@v1
         with:
           # The action should run after your static file are built
           build-dir: YOU_STATIC_FILES_OUT_DIR

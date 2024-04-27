@@ -12,11 +12,16 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
-      - name: Use Node.js v20.9.0
-        uses: actions/setup-node@v1
+      - name: Checkout
+        id: checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        id: setup-node
+        uses: actions/setup-node@v4
         with:
-          node-version: v20.9.0
+          node-version-file: .nvmrc
+          cache: npm
 
       - name: Run deployment preview
         id: s3-preview-deployment-action
