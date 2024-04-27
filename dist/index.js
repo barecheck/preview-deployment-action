@@ -87521,7 +87521,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.syncFiles = exports.deleteObjects = exports.setupS3Bucket = exports.updateBucketPolicy = void 0;
+exports.syncFiles = exports.deleteObjectsByPrefix = exports.setupS3Bucket = exports.updateBucketPolicy = void 0;
 const client_s3_1 = __nccwpck_require__(9250);
 const path_1 = __importDefault(__nccwpck_require__(1017));
 const recursive_readdir_1 = __importDefault(__nccwpck_require__(6715));
@@ -87603,20 +87603,39 @@ async function putObject(bucketName, key, filePath) {
     };
     await client.send(new client_s3_1.PutObjectCommand(params));
 }
-async function deleteObjects(bucketName, prefix) {
-    const params = {
-        Bucket: bucketName,
-        Key: prefix,
-    };
-    await client.send(new client_s3_1.DeleteObjectCommand(params));
-    console.log("Objects Deleted:", { bucketName, prefix });
+async function deleteObjectsByPrefix(bucketName, prefix) {
+    console.log(`Deleting objects with prefix: ${prefix}`);
+    async function recursiveDelete(token) {
+        const params = {
+            Bucket: bucketName,
+            Prefix: prefix,
+            ContinuationToken: token,
+        };
+        const list = await client.send(new client_s3_1.ListObjectsV2Command(params));
+        if (list.KeyCount && list.Contents) {
+            const deleteParams = {
+                Bucket: bucketName,
+                Delete: {
+                    Objects: list.Contents.map(({ Key }) => ({ Key })),
+                },
+            };
+            const deletedRes = await client.send(new client_s3_1.DeleteObjectsCommand(deleteParams));
+            if (deletedRes.Errors) {
+                deletedRes.Errors.map((error) => console.log(`${error.Key} could not be deleted - ${error.Code}`));
+            }
+            if (list.NextContinuationToken) {
+                recursiveDelete(list.NextContinuationToken);
+            }
+        }
+    }
+    return recursiveDelete();
 }
-exports.deleteObjects = deleteObjects;
+exports.deleteObjectsByPrefix = deleteObjectsByPrefix;
 function filePathToS3Key(filePath) {
     return filePath.replace(/^(\\|\/)+/g, "").replace(/\\/g, "/");
 }
 async function syncFiles({ bucketName, prefix, directory, }) {
-    await deleteObjects(bucketName, prefix);
+    await deleteObjectsByPrefix(bucketName, prefix);
     const normalizedPath = path_1.default.normalize(directory);
     const files = await (0, recursive_readdir_1.default)(normalizedPath);
     console.log(`Syncing ${files.length} files to S3...`);
@@ -87681,7 +87700,6 @@ async function listDeployments(branchName, environment) {
         ref: `refs/heads/${branchName}`,
         environment,
     });
-    console.log("Deployments:", data);
     return data;
 }
 /**
@@ -87838,7 +87856,7 @@ async function createPreviewEnvironment({ domainName, environment, bucketName, b
     core.setOutput("url", previewUrl);
 }
 async function deletePreviewEnvironment({ domainName, environment, bucketName, branchName, }) {
-    await (0, s3_1.deleteObjects)(bucketName, environment);
+    await (0, s3_1.deleteObjectsByPrefix)(bucketName, environment);
     await (0, deployments_1.deleteDeployments)(environment, branchName);
     await (0, route53_1.deleteRoute53Record)({
         domainName: (0, config_1.getDomainName)(),
