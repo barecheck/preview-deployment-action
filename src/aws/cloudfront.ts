@@ -27,7 +27,7 @@ import {
 } from "@aws-sdk/client-cloudfront"
 import { readFileSync } from "fs"
 
-import { getAppName, getBuidDir, aws } from "../config"
+import { getAppName, getDomainName, aws } from "../config"
 import path from "path"
 
 const client = new CloudFrontClient()
@@ -38,7 +38,7 @@ function getDefaultDistributionInput(
   cloudfrontFunctionArn: string,
 ) {
   const appName = getAppName()
-  const domainName = getBuidDir()
+  const domainName = getDomainName()
 
   const defaultDistributionInput = {
     DistributionConfig: {

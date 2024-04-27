@@ -87182,7 +87182,7 @@ const path_1 = __importDefault(__nccwpck_require__(1017));
 const client = new client_cloudfront_1.CloudFrontClient();
 function getDefaultDistributionInput(originId, originAccessControlId, cloudfrontFunctionArn) {
     const appName = (0, config_1.getAppName)();
-    const domainName = (0, config_1.getBuidDir)();
+    const domainName = (0, config_1.getDomainName)();
     const defaultDistributionInput = {
         DistributionConfig: {
             CallerReference: appName,
