@@ -100,7 +100,7 @@ async function putObject(bucketName: string, key: string, filePath: string) {
   await client.send(new PutObjectCommand(params))
 }
 
-async function deleteObjects(bucketName: string, prefix: string) {
+export async function deleteObjects(bucketName: string, prefix: string) {
   const params = {
     Bucket: bucketName,
     Key: prefix,

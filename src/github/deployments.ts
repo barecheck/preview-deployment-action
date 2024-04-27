@@ -11,10 +11,7 @@ function getGithubClient() {
   return getOctokit(process.env.GITHUB_TOKEN as string)
 }
 
-async function checkIfDeploymentExists(
-  branchName: string,
-  environment: string,
-) {
+async function listDeployments(branchName: string, environment: string) {
   const octokit = getGithubClient()
 
   const owner = context.repo.owner
@@ -94,25 +91,13 @@ export async function updateDeploymentStatus({
  * If a deployment already exists for the branch, it will be used.
  * Otherwise, a new deployment will be created.
  */
-export async function startDeployment(environment: string) {
-  const branchName = context.payload.pull_request?.head.ref
-
-  if (!branchName) {
-    console.log(
-      "No branch name found in the payload. Skipping deployment creation.",
-    )
-    return
-  }
-
+export async function startDeployment(environment: string, branchName: string) {
   let deploymentId: number
-  const currentDeployment = await checkIfDeploymentExists(
-    branchName,
-    environment,
-  )
+  const currentDeployments = await listDeployments(branchName, environment)
 
-  if (currentDeployment.length > 0) {
+  if (currentDeployments.length > 0) {
     console.log("Deployment already exists for this branch")
-    deploymentId = currentDeployment[0].id
+    deploymentId = currentDeployments[0].id
   } else {
     deploymentId = await createDeployment(branchName, environment)
   }
@@ -124,4 +109,26 @@ export async function startDeployment(environment: string) {
   })
 
   return deploymentId
+}
+
+export async function deleteDeployments(
+  environment: string,
+  branchName: string,
+) {
+  const deployments = await listDeployments(branchName, environment)
+
+  await Promise.all(
+    deployments.map(async (deployment) => {
+      const octokit = getGithubClient()
+
+      const owner = context.repo.owner
+      const repo = context.repo.repo
+
+      await octokit.rest.repos.deleteDeployment({
+        owner,
+        repo,
+        deployment_id: deployment.id,
+      })
+    }),
+  )
 }
