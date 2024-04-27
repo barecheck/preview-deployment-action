@@ -87267,7 +87267,7 @@ function getDefaultDistributionInput(originId, originAccessControlId, cloudfront
                 Bucket: "",
                 Prefix: "",
             },
-            DefaultRootObject: "index.html",
+            DefaultRootObject: "",
             WebACLId: "",
             Restrictions: {
                 GeoRestriction: {

@@ -125,7 +125,7 @@ function getDefaultDistributionInput(
         Bucket: "",
         Prefix: "",
       },
-      DefaultRootObject: "index.html",
+      DefaultRootObject: "",
       WebACLId: "",
       Restrictions: {
         GeoRestriction: {
