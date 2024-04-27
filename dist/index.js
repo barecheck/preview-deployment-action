@@ -87613,7 +87613,7 @@ exports.syncFiles = syncFiles;
 "use strict";
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.aws = exports.getDomainName = exports.getBuidDir = exports.getAppName = void 0;
+exports.aws = exports.getGithubToken = exports.getDomainName = exports.getBuidDir = exports.getAppName = void 0;
 const core_1 = __nccwpck_require__(2186);
 const getAppName = () => (0, core_1.getInput)("app-name") || process.env.APP_NAME;
 exports.getAppName = getAppName;
@@ -87621,12 +87621,47 @@ const getBuidDir = () => (0, core_1.getInput)("build-dir") || process.env.BUILD_
 exports.getBuidDir = getBuidDir;
 const getDomainName = () => (0, core_1.getInput)("domain") || process.env.DOMAIN;
 exports.getDomainName = getDomainName;
+const getGithubToken = () => process.env.GITHUB_TOKEN;
+exports.getGithubToken = getGithubToken;
 exports.aws = {
     region: process.env.AWS_REGION,
     accountId: process.env.AWS_ACCOUNT_ID,
     cloudfrontCertificateArn: process.env
         .AWS_CLOUDFRONT_CERTIFICATE_ARN,
 };
+
+
+/***/ }),
+
+/***/ 4341:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.createDeployment = void 0;
+const github_1 = __nccwpck_require__(5438);
+function getGithubClient() {
+    return (0, github_1.getOctokit)(process.env.GITHUB_TOKEN);
+}
+async function createDeployment() {
+    const octokit = getGithubClient();
+    const owner = github_1.context.repo.owner;
+    const repo = github_1.context.repo.repo;
+    const branchName = github_1.context.payload.pull_request?.head.ref;
+    if (!branchName) {
+        console.log("No branch name found in the payload. Skipping deployment creation.");
+        const res = await octokit.request("POST /repos/{owner}/{repo}/deployments", {
+            owner,
+            repo,
+            ref: `refs/heads/${branchName}`,
+            auto_merge: true,
+            dssdsa: "dsds",
+        });
+        console.log("Created Deployment:", res.data);
+    }
+}
+exports.createDeployment = createDeployment;
 
 
 /***/ }),
@@ -87666,6 +87701,7 @@ const github_1 = __nccwpck_require__(5438);
 const cloudfront_1 = __nccwpck_require__(1925);
 const s3_1 = __nccwpck_require__(3830);
 const route53_1 = __nccwpck_require__(9625);
+const deployments_1 = __nccwpck_require__(4341);
 const config_1 = __nccwpck_require__(6373);
 async function createAwsResources({ bucketName, domainName, previewSubDomain, }) {
     // TODO: Ability to give custom region for S3 bucket
@@ -87707,6 +87743,7 @@ async function run() {
             domainName,
             previewSubDomain,
         });
+        await (0, deployments_1.createDeployment)();
         await (0, s3_1.syncFiles)({
             bucketName,
             prefix: previewSubDomain,
