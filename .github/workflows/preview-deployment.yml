@@ -1,6 +1,12 @@
 name: Preview Deployment
 
-on: [pull_request]
+on:
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - closed
 
 jobs:
   deploy:

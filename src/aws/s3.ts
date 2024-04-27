@@ -4,7 +4,8 @@ import {
   PutBucketPolicyCommand,
   ListBucketsCommand,
   PutObjectCommand,
-  DeleteObjectCommand,
+  ListObjectsV2Command,
+  DeleteObjectsCommand,
 } from "@aws-sdk/client-s3"
 import path from "path"
 import readdir from "recursive-readdir"
@@ -100,14 +101,44 @@ async function putObject(bucketName: string, key: string, filePath: string) {
   await client.send(new PutObjectCommand(params))
 }
 
-async function deleteObjects(bucketName: string, prefix: string) {
-  const params = {
-    Bucket: bucketName,
-    Key: prefix,
-  }
-  await client.send(new DeleteObjectCommand(params))
+export async function deleteObjectsByPrefix(
+  bucketName: string,
+  prefix: string,
+) {
+  console.log(`Deleting objects with prefix: ${prefix}`)
+  async function recursiveDelete(token?: string | undefined) {
+    const params = {
+      Bucket: bucketName,
+      Prefix: prefix,
+      ContinuationToken: token,
+    }
 
-  console.log("Objects Deleted:", { bucketName, prefix })
+    const list = await client.send(new ListObjectsV2Command(params))
+
+    if (list.KeyCount && list.Contents) {
+      const deleteParams = {
+        Bucket: bucketName,
+        Delete: {
+          Objects: list.Contents.map(({ Key }) => ({ Key })),
+        },
+      }
+      const deletedRes = await client.send(
+        new DeleteObjectsCommand(deleteParams),
+      )
+
+      if (deletedRes.Errors) {
+        deletedRes.Errors.map((error) =>
+          console.log(`${error.Key} could not be deleted - ${error.Code}`),
+        )
+      }
+
+      if (list.NextContinuationToken) {
+        recursiveDelete(list.NextContinuationToken)
+      }
+    }
+  }
+
+  return recursiveDelete()
 }
 
 function filePathToS3Key(filePath: string) {
@@ -125,7 +156,7 @@ export async function syncFiles({
   prefix,
   directory,
 }: SyncFilesParams) {
-  await deleteObjects(bucketName, prefix)
+  await deleteObjectsByPrefix(bucketName, prefix)
 
   const normalizedPath = path.normalize(directory)
   const files = await readdir(normalizedPath)

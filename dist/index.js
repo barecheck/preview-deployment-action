@@ -87420,7 +87420,7 @@ exports.createCloudfront = createCloudfront;
 "use strict";
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.createRoute53Record = void 0;
+exports.deleteRoute53Record = exports.createRoute53Record = void 0;
 const client_route_53_1 = __nccwpck_require__(3113);
 const config_1 = __nccwpck_require__(6373);
 const client = new client_route_53_1.Route53Client();
@@ -87482,6 +87482,32 @@ async function createRoute53Record({ domainName, recordName, routeTrafficTo, }) 
     await client.send(new client_route_53_1.ChangeResourceRecordSetsCommand(recordParams));
 }
 exports.createRoute53Record = createRoute53Record;
+async function deleteRoute53Record({ domainName, recordName, }) {
+    const hostedZone = await findHostedZone(domainName);
+    if (!hostedZone || !hostedZone.Id) {
+        throw new Error(`Hosted zone not found for ${domainName}`);
+    }
+    const record = await findRoute53Record(hostedZone.Id, recordName);
+    if (!record) {
+        console.log("Record doesn't exist:", recordName);
+        return;
+    }
+    console.log("Deleting record:", recordName);
+    const recordParams = {
+        ChangeBatch: {
+            Changes: [
+                {
+                    Action: client_route_53_1.ChangeAction.DELETE,
+                    ResourceRecordSet: record,
+                },
+            ],
+            Comment: `Preview deployment record for ${recordName}`,
+        },
+        HostedZoneId: hostedZone.Id,
+    };
+    await client.send(new client_route_53_1.ChangeResourceRecordSetsCommand(recordParams));
+}
+exports.deleteRoute53Record = deleteRoute53Record;
 
 
 /***/ }),
@@ -87495,7 +87521,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.syncFiles = exports.setupS3Bucket = exports.updateBucketPolicy = void 0;
+exports.syncFiles = exports.deleteObjectsByPrefix = exports.setupS3Bucket = exports.updateBucketPolicy = void 0;
 const client_s3_1 = __nccwpck_require__(9250);
 const path_1 = __importDefault(__nccwpck_require__(1017));
 const recursive_readdir_1 = __importDefault(__nccwpck_require__(6715));
@@ -87577,19 +87603,39 @@ async function putObject(bucketName, key, filePath) {
     };
     await client.send(new client_s3_1.PutObjectCommand(params));
 }
-async function deleteObjects(bucketName, prefix) {
-    const params = {
-        Bucket: bucketName,
-        Key: prefix,
-    };
-    await client.send(new client_s3_1.DeleteObjectCommand(params));
-    console.log("Objects Deleted:", { bucketName, prefix });
+async function deleteObjectsByPrefix(bucketName, prefix) {
+    console.log(`Deleting objects with prefix: ${prefix}`);
+    async function recursiveDelete(token) {
+        const params = {
+            Bucket: bucketName,
+            Prefix: prefix,
+            ContinuationToken: token,
+        };
+        const list = await client.send(new client_s3_1.ListObjectsV2Command(params));
+        if (list.KeyCount && list.Contents) {
+            const deleteParams = {
+                Bucket: bucketName,
+                Delete: {
+                    Objects: list.Contents.map(({ Key }) => ({ Key })),
+                },
+            };
+            const deletedRes = await client.send(new client_s3_1.DeleteObjectsCommand(deleteParams));
+            if (deletedRes.Errors) {
+                deletedRes.Errors.map((error) => console.log(`${error.Key} could not be deleted - ${error.Code}`));
+            }
+            if (list.NextContinuationToken) {
+                recursiveDelete(list.NextContinuationToken);
+            }
+        }
+    }
+    return recursiveDelete();
 }
+exports.deleteObjectsByPrefix = deleteObjectsByPrefix;
 function filePathToS3Key(filePath) {
     return filePath.replace(/^(\\|\/)+/g, "").replace(/\\/g, "/");
 }
 async function syncFiles({ bucketName, prefix, directory, }) {
-    await deleteObjects(bucketName, prefix);
+    await deleteObjectsByPrefix(bucketName, prefix);
     const normalizedPath = path_1.default.normalize(directory);
     const files = await (0, recursive_readdir_1.default)(normalizedPath);
     console.log(`Syncing ${files.length} files to S3...`);
@@ -87613,7 +87659,7 @@ exports.syncFiles = syncFiles;
 "use strict";
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.aws = exports.getDomainName = exports.getBuidDir = exports.getAppName = void 0;
+exports.aws = exports.getGithubToken = exports.getDomainName = exports.getBuidDir = exports.getAppName = void 0;
 const core_1 = __nccwpck_require__(2186);
 const getAppName = () => (0, core_1.getInput)("app-name") || process.env.APP_NAME;
 exports.getAppName = getAppName;
@@ -87621,12 +87667,116 @@ const getBuidDir = () => (0, core_1.getInput)("build-dir") || process.env.BUILD_
 exports.getBuidDir = getBuidDir;
 const getDomainName = () => (0, core_1.getInput)("domain") || process.env.DOMAIN;
 exports.getDomainName = getDomainName;
+const getGithubToken = () => process.env.GITHUB_TOKEN;
+exports.getGithubToken = getGithubToken;
 exports.aws = {
     region: process.env.AWS_REGION,
     accountId: process.env.AWS_ACCOUNT_ID,
     cloudfrontCertificateArn: process.env
         .AWS_CLOUDFRONT_CERTIFICATE_ARN,
 };
+
+
+/***/ }),
+
+/***/ 4341:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.deleteDeployments = exports.startDeployment = exports.updateDeploymentStatus = void 0;
+const github_1 = __nccwpck_require__(5438);
+function getGithubClient() {
+    return (0, github_1.getOctokit)(process.env.GITHUB_TOKEN);
+}
+async function listDeployments(branchName, environment) {
+    const octokit = getGithubClient();
+    const owner = github_1.context.repo.owner;
+    const repo = github_1.context.repo.repo;
+    const { data } = await octokit.rest.repos.listDeployments({
+        owner,
+        repo,
+        ref: `refs/heads/${branchName}`,
+        environment,
+    });
+    return data;
+}
+/**
+ * Creates a deployment for the current branch.
+ */
+async function createDeployment(branchName, environment) {
+    const octokit = getGithubClient();
+    const owner = github_1.context.repo.owner;
+    const repo = github_1.context.repo.repo;
+    const { data } = await octokit.rest.repos.createDeployment({
+        owner,
+        repo,
+        ref: `refs/heads/${branchName}`,
+        auto_merge: true,
+        transient_environment: true,
+        required_contexts: [], // no checks required
+        environment,
+    });
+    if (!data || !("id" in data)) {
+        throw new Error("Failed to create deployment");
+    }
+    return data.id;
+}
+/**
+ * Updates the deployment status.
+ */
+async function updateDeploymentStatus({ deploymentId, status, previewUrl, environment, }) {
+    const octokit = getGithubClient();
+    const owner = github_1.context.repo.owner;
+    const repo = github_1.context.repo.repo;
+    await octokit.rest.repos.createDeploymentStatus({
+        owner,
+        repo,
+        deployment_id: deploymentId,
+        state: status,
+        environment_url: previewUrl,
+        environment,
+    });
+}
+exports.updateDeploymentStatus = updateDeploymentStatus;
+/*
+ * Starts the deployment process.
+ * If a deployment already exists for the branch, it will be used.
+ * Otherwise, a new deployment will be created.
+ */
+async function startDeployment(environment, branchName) {
+    let deploymentId;
+    const currentDeployments = await listDeployments(branchName, environment);
+    if (currentDeployments.length > 0) {
+        console.log("Deployment already exists for this branch");
+        deploymentId = currentDeployments[0].id;
+    }
+    else {
+        deploymentId = await createDeployment(branchName, environment);
+    }
+    await updateDeploymentStatus({
+        deploymentId,
+        status: "in_progress",
+        environment,
+    });
+    return deploymentId;
+}
+exports.startDeployment = startDeployment;
+async function deleteDeployments(environment, branchName) {
+    const deployments = await listDeployments(branchName, environment);
+    await Promise.all(deployments.map(async (deployment) => {
+        const octokit = getGithubClient();
+        const owner = github_1.context.repo.owner;
+        const repo = github_1.context.repo.repo;
+        await octokit.rest.repos.deleteDeployment({
+            owner,
+            repo,
+            deployment_id: deployment.id,
+        });
+    }));
+}
+exports.deleteDeployments = deleteDeployments;
 
 
 /***/ }),
@@ -87666,8 +87816,9 @@ const github_1 = __nccwpck_require__(5438);
 const cloudfront_1 = __nccwpck_require__(1925);
 const s3_1 = __nccwpck_require__(3830);
 const route53_1 = __nccwpck_require__(9625);
+const deployments_1 = __nccwpck_require__(4341);
 const config_1 = __nccwpck_require__(6373);
-async function createAwsResources({ bucketName, domainName, previewSubDomain, }) {
+async function createAwsResources({ bucketName, domainName, environment, }) {
     // TODO: Ability to give custom region for S3 bucket
     const originId = `${bucketName}.s3.us-east-1.amazonaws.com`;
     await (0, s3_1.setupS3Bucket)(bucketName);
@@ -87675,10 +87826,42 @@ async function createAwsResources({ bucketName, domainName, previewSubDomain, })
     await (0, s3_1.updateBucketPolicy)(bucketName, cloudfront.id);
     await (0, route53_1.createRoute53Record)({
         domainName,
-        recordName: `${previewSubDomain}.${domainName}`,
+        recordName: `${environment}.${domainName}`,
         routeTrafficTo: cloudfront.domainName,
     });
     return cloudfront;
+}
+async function createPreviewEnvironment({ domainName, environment, bucketName, branchName, }) {
+    const buildDir = (0, config_1.getBuidDir)();
+    const previewUrl = `https://${environment}.${domainName}`;
+    await createAwsResources({
+        bucketName,
+        domainName,
+        environment,
+    });
+    const deploymentId = await (0, deployments_1.startDeployment)(environment, branchName);
+    await (0, s3_1.syncFiles)({
+        bucketName,
+        prefix: environment,
+        directory: buildDir,
+    });
+    // Deployments are not failing Github action if anything goes wrong during creation
+    if (deploymentId)
+        await (0, deployments_1.updateDeploymentStatus)({
+            deploymentId,
+            status: "success",
+            previewUrl,
+            environment,
+        });
+    core.setOutput("url", previewUrl);
+}
+async function deletePreviewEnvironment({ domainName, environment, bucketName, branchName, }) {
+    await (0, s3_1.deleteObjectsByPrefix)(bucketName, environment);
+    await (0, deployments_1.deleteDeployments)(environment, branchName);
+    await (0, route53_1.deleteRoute53Record)({
+        domainName: (0, config_1.getDomainName)(),
+        recordName: `${environment}.${domainName}`,
+    });
 }
 /**
  * The main function for the action.
@@ -87686,33 +87869,40 @@ async function createAwsResources({ bucketName, domainName, previewSubDomain, })
  */
 async function run() {
     try {
-        const buildDir = (0, config_1.getBuidDir)();
+        const { action } = github_1.context.payload;
+        const pullRequest = github_1.context.payload.pull_request;
+        if (!pullRequest) {
+            throw new Error("This action can only be run on pull requests. Exiting...");
+        }
         const appName = (0, config_1.getAppName)();
         const domainName = (0, config_1.getDomainName)();
-        const pullRequestNumber = github_1.context.payload.pull_request?.number;
-        const previewSubDomain = pullRequestNumber
+        const pullRequestNumber = pullRequest.number;
+        const environment = pullRequestNumber
             ? `preview-${pullRequestNumber}`
             : "preview";
         const bucketName = `${appName}-preview-deployment`;
-        console.log("Input Params", {
-            buildDir,
+        const branchName = pullRequest.head.ref;
+        const params = {
             appName,
             domainName,
+            environment,
+            bucketName,
+            branchName,
             pullRequestNumber,
-            previewSubDomain,
-            bucketName,
-        });
-        await createAwsResources({
-            bucketName,
-            domainName,
-            previewSubDomain,
-        });
-        await (0, s3_1.syncFiles)({
-            bucketName,
-            prefix: previewSubDomain,
-            directory: buildDir,
-        });
-        core.setOutput("url", `https://${previewSubDomain}.${domainName}`);
+        };
+        console.log("Running action with params", params);
+        switch (action) {
+            case "opened":
+            case "reopened":
+            case "synchronize":
+                await createPreviewEnvironment(params);
+                break;
+            case "closed":
+                await deletePreviewEnvironment(params);
+                break;
+            default:
+                throw new Error(`${action} is not implemented...`);
+        }
     }
     catch (error) {
         // Fail the workflow run if an error occurs
