@@ -87382,6 +87382,7 @@ async function createCloudfront(originId) {
     const originAccessControlId = await getOriginAccessControl(originId);
     const cloudfrontFunctionArn = await createCloudfrontFunction();
     const distributionInput = getDefaultDistributionInput(originId, originAccessControlId, cloudfrontFunctionArn);
+    console.log("Creating Cloudfront Distribution", distributionInput);
     let distribution;
     if (!distributionFound) {
         const command = new client_cloudfront_1.CreateDistributionCommand(distributionInput);

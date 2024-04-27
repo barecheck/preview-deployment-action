@@ -300,6 +300,8 @@ export async function createCloudfront(originId: string) {
     cloudfrontFunctionArn,
   )
 
+  console.log("Creating Cloudfront Distribution", distributionInput)
+
   let distribution
 
   if (!distributionFound) {
