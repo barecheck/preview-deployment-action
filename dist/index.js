@@ -87613,7 +87613,7 @@ exports.syncFiles = syncFiles;
 "use strict";
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.aws = exports.getDomainName = exports.getBuidDir = exports.getAppName = void 0;
+exports.aws = exports.getGithubToken = exports.getDomainName = exports.getBuidDir = exports.getAppName = void 0;
 const core_1 = __nccwpck_require__(2186);
 const getAppName = () => (0, core_1.getInput)("app-name") || process.env.APP_NAME;
 exports.getAppName = getAppName;
@@ -87621,12 +87621,108 @@ const getBuidDir = () => (0, core_1.getInput)("build-dir") || process.env.BUILD_
 exports.getBuidDir = getBuidDir;
 const getDomainName = () => (0, core_1.getInput)("domain") || process.env.DOMAIN;
 exports.getDomainName = getDomainName;
+const getGithubToken = () => process.env.GITHUB_TOKEN;
+exports.getGithubToken = getGithubToken;
 exports.aws = {
     region: process.env.AWS_REGION,
     accountId: process.env.AWS_ACCOUNT_ID,
     cloudfrontCertificateArn: process.env
         .AWS_CLOUDFRONT_CERTIFICATE_ARN,
 };
+
+
+/***/ }),
+
+/***/ 4341:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.startDeployment = exports.updateDeploymentStatus = void 0;
+const github_1 = __nccwpck_require__(5438);
+function getGithubClient() {
+    return (0, github_1.getOctokit)(process.env.GITHUB_TOKEN);
+}
+async function checkIfDeploymentExists(branchName, environment) {
+    const octokit = getGithubClient();
+    const owner = github_1.context.repo.owner;
+    const repo = github_1.context.repo.repo;
+    const { data } = await octokit.rest.repos.listDeployments({
+        owner,
+        repo,
+        ref: `refs/heads/${branchName}`,
+        environment,
+    });
+    console.log("Deployments:", data);
+    return data;
+}
+/**
+ * Creates a deployment for the current branch.
+ */
+async function createDeployment(branchName) {
+    const octokit = getGithubClient();
+    const owner = github_1.context.repo.owner;
+    const repo = github_1.context.repo.repo;
+    const { data } = await octokit.rest.repos.createDeployment({
+        owner,
+        repo,
+        ref: `refs/heads/${branchName}`,
+        auto_merge: true,
+        transient_environment: true,
+        required_contexts: [], // no checks required
+        environment: "preview", // TODO: Make this configurable
+    });
+    if (!data || !("id" in data)) {
+        throw new Error("Failed to create deployment");
+    }
+    return data.id;
+}
+/**
+ * Updates the deployment status.
+ */
+async function updateDeploymentStatus({ deploymentId, status, previewUrl, environment, }) {
+    const octokit = getGithubClient();
+    const owner = github_1.context.repo.owner;
+    const repo = github_1.context.repo.repo;
+    await octokit.rest.repos.createDeploymentStatus({
+        owner,
+        repo,
+        deployment_id: deploymentId,
+        state: status,
+        environment_url: previewUrl,
+        environment,
+    });
+}
+exports.updateDeploymentStatus = updateDeploymentStatus;
+/*
+ * Starts the deployment process.
+ * If a deployment already exists for the branch, it will be used.
+ * Otherwise, a new deployment will be created.
+ */
+async function startDeployment(environment) {
+    const branchName = github_1.context.payload.pull_request?.head.ref;
+    if (!branchName) {
+        console.log("No branch name found in the payload. Skipping deployment creation.");
+        return;
+    }
+    let deploymentId;
+    const currentDeployment = await checkIfDeploymentExists(branchName, environment);
+    if (currentDeployment.length > 0) {
+        console.log("Deployment already exists for this branch");
+        deploymentId = currentDeployment[0].id;
+    }
+    else {
+        deploymentId = await createDeployment(branchName);
+    }
+    await updateDeploymentStatus({
+        deploymentId,
+        status: "in_progress",
+        environment,
+    });
+    return deploymentId;
+}
+exports.startDeployment = startDeployment;
 
 
 /***/ }),
@@ -87666,6 +87762,7 @@ const github_1 = __nccwpck_require__(5438);
 const cloudfront_1 = __nccwpck_require__(1925);
 const s3_1 = __nccwpck_require__(3830);
 const route53_1 = __nccwpck_require__(9625);
+const deployments_1 = __nccwpck_require__(4341);
 const config_1 = __nccwpck_require__(6373);
 async function createAwsResources({ bucketName, domainName, previewSubDomain, }) {
     // TODO: Ability to give custom region for S3 bucket
@@ -87690,29 +87787,39 @@ async function run() {
         const appName = (0, config_1.getAppName)();
         const domainName = (0, config_1.getDomainName)();
         const pullRequestNumber = github_1.context.payload.pull_request?.number;
-        const previewSubDomain = pullRequestNumber
+        const environment = pullRequestNumber
             ? `preview-${pullRequestNumber}`
             : "preview";
         const bucketName = `${appName}-preview-deployment`;
+        const previewUrl = `https://${environment}.${domainName}`;
         console.log("Input Params", {
             buildDir,
             appName,
             domainName,
             pullRequestNumber,
-            previewSubDomain,
+            previewSubDomain: environment,
             bucketName,
         });
         await createAwsResources({
             bucketName,
             domainName,
-            previewSubDomain,
+            previewSubDomain: environment,
         });
+        const deploymentId = await (0, deployments_1.startDeployment)(environment);
         await (0, s3_1.syncFiles)({
             bucketName,
-            prefix: previewSubDomain,
+            prefix: environment,
             directory: buildDir,
         });
-        core.setOutput("url", `https://${previewSubDomain}.${domainName}`);
+        // Deployments are not failing Github action if anything goes wrong during creation
+        if (deploymentId)
+            await (0, deployments_1.updateDeploymentStatus)({
+                deploymentId,
+                status: "success",
+                previewUrl,
+                environment,
+            });
+        core.setOutput("url", previewUrl);
     }
     catch (error) {
         // Fail the workflow run if an error occurs

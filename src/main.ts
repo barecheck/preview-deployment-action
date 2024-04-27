@@ -4,6 +4,7 @@ import { context } from "@actions/github"
 import { createCloudfront } from "./aws/cloudfront"
 import { setupS3Bucket, syncFiles, updateBucketPolicy } from "./aws/s3"
 import { createRoute53Record } from "./aws/route53"
+import { startDeployment, updateDeploymentStatus } from "./github/deployments"
 import { getAppName, getBuidDir, getDomainName } from "./config"
 
 type CreateAwsResourcesInputParams = {
@@ -42,33 +43,44 @@ export async function run(): Promise<void> {
     const appName = getAppName()
     const domainName = getDomainName()
     const pullRequestNumber = context.payload.pull_request?.number
-    const previewSubDomain = pullRequestNumber
+    const environment = pullRequestNumber
       ? `preview-${pullRequestNumber}`
       : "preview"
     const bucketName = `${appName}-preview-deployment`
+    const previewUrl = `https://${environment}.${domainName}`
 
     console.log("Input Params", {
       buildDir,
       appName,
       domainName,
       pullRequestNumber,
-      previewSubDomain,
+      previewSubDomain: environment,
       bucketName,
     })
 
     await createAwsResources({
       bucketName,
       domainName,
-      previewSubDomain,
+      previewSubDomain: environment,
     })
 
+    const deploymentId = await startDeployment(environment)
     await syncFiles({
       bucketName,
-      prefix: previewSubDomain,
+      prefix: environment,
       directory: buildDir,
     })
 
-    core.setOutput("url", `https://${previewSubDomain}.${domainName}`)
+    // Deployments are not failing Github action if anything goes wrong during creation
+    if (deploymentId)
+      await updateDeploymentStatus({
+        deploymentId,
+        status: "success",
+        previewUrl,
+        environment,
+      })
+
+    core.setOutput("url", previewUrl)
   } catch (error) {
     // Fail the workflow run if an error occurs
     if (error instanceof Error) core.setFailed(error.message)
