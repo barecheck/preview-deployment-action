@@ -1,5 +1,12 @@
 import { getOctokit, context } from "@actions/github"
 
+type DeploymentStatus =
+  | "success"
+  | "failure"
+  | "in_progress"
+  | "queued"
+  | "pending"
+
 function getGithubClient() {
   return getOctokit(process.env.GITHUB_TOKEN as string)
 }
@@ -37,6 +44,7 @@ async function createDeployment(branchName: string) {
     auto_merge: true,
     transient_environment: true,
     required_contexts: [], // no checks required
+    environment: "preview", // TODO: Make this configurable
   })
 
   if (!data || !("id" in data)) {
@@ -46,7 +54,29 @@ async function createDeployment(branchName: string) {
   return data.id
 }
 
-export async function startDeployment() {
+/**
+ * Updates the deployment status.
+ */
+export async function updateDeploymentStatus(
+  deploymentId: number,
+  status: DeploymentStatus,
+  previewUrl: string,
+) {
+  const octokit = getGithubClient()
+
+  const owner = context.repo.owner
+  const repo = context.repo.repo
+
+  await octokit.rest.repos.createDeploymentStatus({
+    owner,
+    repo,
+    deployment_id: deploymentId,
+    state: status,
+    environment_url: previewUrl,
+  })
+}
+
+export async function startDeployment(previewUrl: string) {
   const branchName = context.payload.pull_request?.head.ref
 
   if (!branchName) {
@@ -64,8 +94,7 @@ export async function startDeployment() {
   }
 
   const createdDeploymentId = await createDeployment(branchName)
+  await updateDeploymentStatus(createdDeploymentId, "in_progress", previewUrl)
 
-  //   disable ts check
-  //   eslint-disable-next-line @typescript-eslint/no-unsafe-return
   return createdDeploymentId
 }

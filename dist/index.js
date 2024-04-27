@@ -87639,7 +87639,7 @@ exports.aws = {
 "use strict";
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.startDeployment = void 0;
+exports.startDeployment = exports.updateDeploymentStatus = void 0;
 const github_1 = __nccwpck_require__(5438);
 function getGithubClient() {
     return (0, github_1.getOctokit)(process.env.GITHUB_TOKEN);
@@ -87670,13 +87670,30 @@ async function createDeployment(branchName) {
         auto_merge: true,
         transient_environment: true,
         required_contexts: [], // no checks required
+        environment: "preview", // TODO: Make this configurable
     });
     if (!data || !("id" in data)) {
         throw new Error("Failed to create deployment");
     }
     return data.id;
 }
-async function startDeployment() {
+/**
+ * Updates the deployment status.
+ */
+async function updateDeploymentStatus(deploymentId, status, previewUrl) {
+    const octokit = getGithubClient();
+    const owner = github_1.context.repo.owner;
+    const repo = github_1.context.repo.repo;
+    await octokit.rest.repos.createDeploymentStatus({
+        owner,
+        repo,
+        deployment_id: deploymentId,
+        state: status,
+        environment_url: previewUrl,
+    });
+}
+exports.updateDeploymentStatus = updateDeploymentStatus;
+async function startDeployment(previewUrl) {
     const branchName = github_1.context.payload.pull_request?.head.ref;
     if (!branchName) {
         console.log("No branch name found in the payload. Skipping deployment creation.");
@@ -87688,8 +87705,7 @@ async function startDeployment() {
         return;
     }
     const createdDeploymentId = await createDeployment(branchName);
-    //   disable ts check
-    //   eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    await updateDeploymentStatus(createdDeploymentId, "in_progress", previewUrl);
     return createdDeploymentId;
 }
 exports.startDeployment = startDeployment;
@@ -87761,6 +87777,7 @@ async function run() {
             ? `preview-${pullRequestNumber}`
             : "preview";
         const bucketName = `${appName}-preview-deployment`;
+        const previewUrl = `https://${previewSubDomain}.${domainName}`;
         console.log("Input Params", {
             buildDir,
             appName,
@@ -87774,13 +87791,16 @@ async function run() {
             domainName,
             previewSubDomain,
         });
-        await (0, deployments_1.startDeployment)();
+        const deploymentId = await (0, deployments_1.startDeployment)(previewUrl);
         await (0, s3_1.syncFiles)({
             bucketName,
             prefix: previewSubDomain,
             directory: buildDir,
         });
-        core.setOutput("url", `https://${previewSubDomain}.${domainName}`);
+        // Deployments are not failing Github action if anything goes wrong during creation
+        if (deploymentId)
+            await (0, deployments_1.updateDeploymentStatus)(deploymentId, "success", previewUrl);
+        core.setOutput("url", previewUrl);
     }
     catch (error) {
         // Fail the workflow run if an error occurs
