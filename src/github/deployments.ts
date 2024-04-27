@@ -24,8 +24,6 @@ async function listDeployments(branchName: string, environment: string) {
     environment,
   })
 
-  console.log("Deployments:", data)
-
   return data
 }
 
