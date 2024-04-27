@@ -4,11 +4,50 @@ function getGithubClient() {
   return getOctokit(process.env.GITHUB_TOKEN as string)
 }
 
-export async function createDeployment() {
+async function checkIfDeploymentExists(branchName: string) {
   const octokit = getGithubClient()
 
   const owner = context.repo.owner
   const repo = context.repo.repo
+
+  const { data } = await octokit.rest.repos.listDeployments({
+    owner,
+    repo,
+    ref: `refs/heads/${branchName}`,
+  })
+
+  console.log("Deployments:", data)
+
+  return data
+}
+
+/**
+ * Creates a deployment for the current branch.
+ */
+async function createDeployment(branchName: string) {
+  const octokit = getGithubClient()
+
+  const owner = context.repo.owner
+  const repo = context.repo.repo
+
+  await checkIfDeploymentExists(branchName)
+
+  const { data } = await octokit.rest.repos.createDeployment({
+    owner,
+    repo,
+    ref: `refs/heads/${branchName}`,
+    auto_merge: true,
+    transient_environment: true,
+  })
+
+  if (!data || !("id" in data)) {
+    throw new Error("Failed to create deployment")
+  }
+
+  return data.id
+}
+
+export async function startDeployment() {
   const branchName = context.payload.pull_request?.head.ref
 
   if (!branchName) {
@@ -18,13 +57,16 @@ export async function createDeployment() {
     return
   }
 
-  const res = await octokit.request("POST /repos/{owner}/{repo}/deployments", {
-    owner,
-    repo,
-    ref: `refs/heads/${branchName}`,
-    auto_merge: true,
-    transient_environment: true,
-  })
+  const currentDeployment = await checkIfDeploymentExists(branchName)
 
-  console.log("Created Deployment:", res.data)
+  if (currentDeployment.length > 0) {
+    console.log("Deployment already exists for this branch")
+    return
+  }
+
+  const createdDeploymentId = await createDeployment(branchName)
+
+  //   disable ts check
+  //   eslint-disable-next-line @typescript-eslint/no-unsafe-return
+  return createdDeploymentId
 }

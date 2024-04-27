@@ -4,7 +4,7 @@ import { context } from "@actions/github"
 import { createCloudfront } from "./aws/cloudfront"
 import { setupS3Bucket, syncFiles, updateBucketPolicy } from "./aws/s3"
 import { createRoute53Record } from "./aws/route53"
-import { createDeployment } from "./github/deployments"
+import { startDeployment } from "./github/deployments"
 import { getAppName, getBuidDir, getDomainName } from "./config"
 
 type CreateAwsResourcesInputParams = {
@@ -63,7 +63,7 @@ export async function run(): Promise<void> {
       previewSubDomain,
     })
 
-    await createDeployment()
+    await startDeployment()
     await syncFiles({
       bucketName,
       prefix: previewSubDomain,

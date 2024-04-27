@@ -87639,30 +87639,60 @@ exports.aws = {
 "use strict";
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.createDeployment = void 0;
+exports.startDeployment = void 0;
 const github_1 = __nccwpck_require__(5438);
 function getGithubClient() {
     return (0, github_1.getOctokit)(process.env.GITHUB_TOKEN);
 }
-async function createDeployment() {
+async function checkIfDeploymentExists(branchName) {
     const octokit = getGithubClient();
     const owner = github_1.context.repo.owner;
     const repo = github_1.context.repo.repo;
-    const branchName = github_1.context.payload.pull_request?.head.ref;
-    if (!branchName) {
-        console.log("No branch name found in the payload. Skipping deployment creation.");
-        return;
-    }
-    const res = await octokit.request("POST /repos/{owner}/{repo}/deployments", {
+    const { data } = await octokit.rest.repos.listDeployments({
+        owner,
+        repo,
+        ref: `refs/heads/${branchName}`,
+    });
+    console.log("Deployments:", data);
+    return data;
+}
+/**
+ * Creates a deployment for the current branch.
+ */
+async function createDeployment(branchName) {
+    const octokit = getGithubClient();
+    const owner = github_1.context.repo.owner;
+    const repo = github_1.context.repo.repo;
+    await checkIfDeploymentExists(branchName);
+    const { data } = await octokit.rest.repos.createDeployment({
         owner,
         repo,
         ref: `refs/heads/${branchName}`,
         auto_merge: true,
         transient_environment: true,
     });
-    console.log("Created Deployment:", res.data);
+    if (!data || !("id" in data)) {
+        throw new Error("Failed to create deployment");
+    }
+    return data.id;
 }
-exports.createDeployment = createDeployment;
+async function startDeployment() {
+    const branchName = github_1.context.payload.pull_request?.head.ref;
+    if (!branchName) {
+        console.log("No branch name found in the payload. Skipping deployment creation.");
+        return;
+    }
+    const currentDeployment = await checkIfDeploymentExists(branchName);
+    if (currentDeployment.length > 0) {
+        console.log("Deployment already exists for this branch");
+        return;
+    }
+    const createdDeploymentId = await createDeployment(branchName);
+    //   disable ts check
+    //   eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    return createdDeploymentId;
+}
+exports.startDeployment = startDeployment;
 
 
 /***/ }),
@@ -87744,7 +87774,7 @@ async function run() {
             domainName,
             previewSubDomain,
         });
-        await (0, deployments_1.createDeployment)();
+        await (0, deployments_1.startDeployment)();
         await (0, s3_1.syncFiles)({
             bucketName,
             prefix: previewSubDomain,
