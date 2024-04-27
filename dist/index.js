@@ -87663,13 +87663,13 @@ async function createDeployment(branchName) {
     const octokit = getGithubClient();
     const owner = github_1.context.repo.owner;
     const repo = github_1.context.repo.repo;
-    await checkIfDeploymentExists(branchName);
     const { data } = await octokit.rest.repos.createDeployment({
         owner,
         repo,
         ref: `refs/heads/${branchName}`,
         auto_merge: true,
         transient_environment: true,
+        required_contexts: [], // no checks required
     });
     if (!data || !("id" in data)) {
         throw new Error("Failed to create deployment");

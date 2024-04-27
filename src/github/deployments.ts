@@ -30,14 +30,13 @@ async function createDeployment(branchName: string) {
   const owner = context.repo.owner
   const repo = context.repo.repo
 
-  await checkIfDeploymentExists(branchName)
-
   const { data } = await octokit.rest.repos.createDeployment({
     owner,
     repo,
     ref: `refs/heads/${branchName}`,
     auto_merge: true,
     transient_environment: true,
+    required_contexts: [], // no checks required
   })
 
   if (!data || !("id" in data)) {
