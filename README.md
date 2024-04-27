@@ -18,7 +18,7 @@ availabke to use as part of your Pull request workflow and does the following:
 
 To quickly start with action:
 
-- Copy the file provided below to `.github/workflows`
+- Copy the file provided below to `.github/workflows/preview.yml`
 - Replace parameters with your own ones
 - If you need to build static files, just add steps before calling `preview-deployment-action`
 - Add AWS access keys as Github Secrets. They are needed to create Route53, Cloudfront, S3 resources.
