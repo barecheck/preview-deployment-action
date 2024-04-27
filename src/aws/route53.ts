@@ -90,3 +90,42 @@ export async function createRoute53Record({
 
   await client.send(new ChangeResourceRecordSetsCommand(recordParams))
 }
+
+type DeleteRoute53RecordParams = {
+  domainName: string
+  recordName: string
+}
+
+export async function deleteRoute53Record({
+  domainName,
+  recordName,
+}: DeleteRoute53RecordParams) {
+  const hostedZone = await findHostedZone(domainName)
+  if (!hostedZone || !hostedZone.Id) {
+    throw new Error(`Hosted zone not found for ${domainName}`)
+  }
+
+  const record = await findRoute53Record(hostedZone.Id, recordName)
+
+  if (!record) {
+    console.log("Record doesn't exist:", recordName)
+    return
+  }
+
+  console.log("Deleting record:", recordName)
+
+  const recordParams = {
+    ChangeBatch: {
+      Changes: [
+        {
+          Action: ChangeAction.DELETE,
+          ResourceRecordSet: record,
+        },
+      ],
+      Comment: `Preview deployment record for ${recordName}`,
+    },
+    HostedZoneId: hostedZone.Id,
+  }
+
+  await client.send(new ChangeResourceRecordSetsCommand(recordParams))
+}

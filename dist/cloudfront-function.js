@@ -1,4 +1,4 @@
-// Version 1.0.1
+// Version 1.1.0
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 function handler(event) {
   const request = event.request

@@ -2,9 +2,102 @@ import * as core from "@actions/core"
 import { context } from "@actions/github"
 
 import { createCloudfront } from "./aws/cloudfront"
-import { setupS3Bucket, syncFiles, updateBucketPolicy } from "./aws/s3"
-import { createRoute53Record } from "./aws/route53"
+import {
+  setupS3Bucket,
+  syncFiles,
+  updateBucketPolicy,
+  deleteObjectsByPrefix,
+} from "./aws/s3"
+import { createRoute53Record, deleteRoute53Record } from "./aws/route53"
+import {
+  startDeployment,
+  updateDeploymentStatus,
+  deleteDeployments,
+} from "./github/deployments"
 import { getAppName, getBuidDir, getDomainName } from "./config"
+
+type CreateAwsResourcesInputParams = {
+  bucketName: string
+  domainName: string
+  environment: string
+}
+
+async function createAwsResources({
+  bucketName,
+  domainName,
+  environment,
+}: CreateAwsResourcesInputParams) {
+  // TODO: Ability to give custom region for S3 bucket
+  const originId = `${bucketName}.s3.us-east-1.amazonaws.com`
+  await setupS3Bucket(bucketName)
+  const cloudfront = await createCloudfront(originId)
+  await updateBucketPolicy(bucketName, cloudfront.id)
+
+  await createRoute53Record({
+    domainName,
+    recordName: `${environment}.${domainName}`,
+    routeTrafficTo: cloudfront.domainName,
+  })
+
+  return cloudfront
+}
+
+type EnvironmentActionParams = {
+  appName: string
+  domainName: string
+  environment: string
+  bucketName: string
+  branchName: string
+  pullRequestNumber: number
+}
+
+async function createPreviewEnvironment({
+  domainName,
+  environment,
+  bucketName,
+  branchName,
+}: EnvironmentActionParams) {
+  const buildDir = getBuidDir()
+  const previewUrl = `https://${environment}.${domainName}`
+
+  await createAwsResources({
+    bucketName,
+    domainName,
+    environment,
+  })
+
+  const deploymentId = await startDeployment(environment, branchName)
+  await syncFiles({
+    bucketName,
+    prefix: environment,
+    directory: buildDir,
+  })
+
+  // Deployments are not failing Github action if anything goes wrong during creation
+  if (deploymentId)
+    await updateDeploymentStatus({
+      deploymentId,
+      status: "success",
+      previewUrl,
+      environment,
+    })
+
+  core.setOutput("url", previewUrl)
+}
+
+async function deletePreviewEnvironment({
+  domainName,
+  environment,
+  bucketName,
+  branchName,
+}: EnvironmentActionParams) {
+  await deleteObjectsByPrefix(bucketName, environment)
+  await deleteDeployments(environment, branchName)
+  await deleteRoute53Record({
+    domainName: getDomainName(),
+    recordName: `${environment}.${domainName}`,
+  })
+}
 
 /**
  * The main function for the action.
@@ -12,35 +105,46 @@ import { getAppName, getBuidDir, getDomainName } from "./config"
  */
 export async function run(): Promise<void> {
   try {
-    const buildDir = getBuidDir()
+    const { action } = context.payload
+    const pullRequest = context.payload.pull_request
+    if (!pullRequest) {
+      throw new Error(
+        "This action can only be run on pull requests. Exiting...",
+      )
+    }
+
     const appName = getAppName()
     const domainName = getDomainName()
-    const pullRequestNumber = context.payload.pull_request?.number
-    const subDomain = pullRequestNumber
+    const pullRequestNumber = pullRequest.number
+    const environment = pullRequestNumber
       ? `preview-${pullRequestNumber}`
       : "preview"
     const bucketName = `${appName}-preview-deployment`
-    const originId = `${bucketName}.s3.us-east-1.amazonaws.com`
+    const branchName = pullRequest.head.ref
 
-    // TODO: Refactor so infra setup is called only once.
-    // S3 bucket could store metadata about the deployment and be used to check if the infra is already setup.
-    // The bucket could also store Cloudfront distribution ID and Route53 record IDs for easy cleanup.
-    await setupS3Bucket(bucketName)
-    const cloudfront = await createCloudfront(originId)
-    await updateBucketPolicy(bucketName, cloudfront.id)
-    await createRoute53Record({
+    const params = {
+      appName,
       domainName,
-      recordName: `${subDomain}.${domainName}`,
-      routeTrafficTo: cloudfront.domainName,
-    })
-
-    await syncFiles({
+      environment,
       bucketName,
-      prefix: subDomain,
-      directory: buildDir,
-    })
+      branchName,
+      pullRequestNumber,
+    }
 
-    core.setOutput("url", `https://${subDomain}.${domainName}`)
+    console.log("Running action with params", params)
+
+    switch (action) {
+      case "opened":
+      case "reopened":
+      case "synchronize":
+        await createPreviewEnvironment(params)
+        break
+      case "closed":
+        await deletePreviewEnvironment(params)
+        break
+      default:
+        throw new Error(`${action} is not implemented...`)
+    }
   } catch (error) {
     // Fail the workflow run if an error occurs
     if (error instanceof Error) core.setFailed(error.message)

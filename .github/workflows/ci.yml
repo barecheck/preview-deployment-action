@@ -4,9 +4,11 @@ on:
   pull_request:
     branches:
       - main
+      - v1
   push:
     branches:
       - main
+      - v1
 
 permissions:
   contents: read
@@ -25,7 +27,7 @@ jobs:
         id: setup-node
         uses: actions/setup-node@v4
         with:
-          node-version-file: .node-version
+          node-version-file: .nvmrc
           cache: npm
 
       - name: Install Dependencies
