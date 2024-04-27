@@ -87660,7 +87660,7 @@ async function checkIfDeploymentExists(branchName, environment) {
 /**
  * Creates a deployment for the current branch.
  */
-async function createDeployment(branchName) {
+async function createDeployment(branchName, environment) {
     const octokit = getGithubClient();
     const owner = github_1.context.repo.owner;
     const repo = github_1.context.repo.repo;
@@ -87671,7 +87671,7 @@ async function createDeployment(branchName) {
         auto_merge: true,
         transient_environment: true,
         required_contexts: [], // no checks required
-        environment: "preview", // TODO: Make this configurable
+        environment,
     });
     if (!data || !("id" in data)) {
         throw new Error("Failed to create deployment");
@@ -87713,7 +87713,7 @@ async function startDeployment(environment) {
         deploymentId = currentDeployment[0].id;
     }
     else {
-        deploymentId = await createDeployment(branchName);
+        deploymentId = await createDeployment(branchName, environment);
     }
     await updateDeploymentStatus({
         deploymentId,

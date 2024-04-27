@@ -35,7 +35,7 @@ async function checkIfDeploymentExists(
 /**
  * Creates a deployment for the current branch.
  */
-async function createDeployment(branchName: string) {
+async function createDeployment(branchName: string, environment: string) {
   const octokit = getGithubClient()
 
   const owner = context.repo.owner
@@ -48,7 +48,7 @@ async function createDeployment(branchName: string) {
     auto_merge: true,
     transient_environment: true,
     required_contexts: [], // no checks required
-    environment: "preview", // TODO: Make this configurable
+    environment,
   })
 
   if (!data || !("id" in data)) {
@@ -114,7 +114,7 @@ export async function startDeployment(environment: string) {
     console.log("Deployment already exists for this branch")
     deploymentId = currentDeployment[0].id
   } else {
-    deploymentId = await createDeployment(branchName)
+    deploymentId = await createDeployment(branchName, environment)
   }
 
   await updateDeploymentStatus({
