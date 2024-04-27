@@ -10,15 +10,12 @@ inputs:
   build-dir:
     description: "Build directory with static files"
     required: true
-    default: "dist"
   app-name:
     description: "Application name that will be part of AWS resources names"
     required: true
-    default: "my-app"
   domain:
     description: "Application domain name (e.g. example.com). Preview URLs will add Pull Request number as a subdomain."
     required: true
-    default: "example.com"
 
 outputs:
   url:
