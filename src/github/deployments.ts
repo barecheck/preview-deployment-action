@@ -11,7 +11,10 @@ function getGithubClient() {
   return getOctokit(process.env.GITHUB_TOKEN as string)
 }
 
-async function checkIfDeploymentExists(branchName: string) {
+async function checkIfDeploymentExists(
+  branchName: string,
+  environment: string,
+) {
   const octokit = getGithubClient()
 
   const owner = context.repo.owner
@@ -21,6 +24,7 @@ async function checkIfDeploymentExists(branchName: string) {
     owner,
     repo,
     ref: `refs/heads/${branchName}`,
+    environment,
   })
 
   console.log("Deployments:", data)
@@ -54,14 +58,22 @@ async function createDeployment(branchName: string) {
   return data.id
 }
 
+type UpdateDeploymentStatupParams = {
+  deploymentId: number
+  status: DeploymentStatus
+  previewUrl?: string | undefined
+  environment: string
+}
+
 /**
  * Updates the deployment status.
  */
-export async function updateDeploymentStatus(
-  deploymentId: number,
-  status: DeploymentStatus,
-  previewUrl: string,
-) {
+export async function updateDeploymentStatus({
+  deploymentId,
+  status,
+  previewUrl,
+  environment,
+}: UpdateDeploymentStatupParams) {
   const octokit = getGithubClient()
 
   const owner = context.repo.owner
@@ -73,10 +85,16 @@ export async function updateDeploymentStatus(
     deployment_id: deploymentId,
     state: status,
     environment_url: previewUrl,
+    environment,
   })
 }
 
-export async function startDeployment(previewUrl: string) {
+/*
+ * Starts the deployment process.
+ * If a deployment already exists for the branch, it will be used.
+ * Otherwise, a new deployment will be created.
+ */
+export async function startDeployment(environment: string) {
   const branchName = context.payload.pull_request?.head.ref
 
   if (!branchName) {
@@ -86,15 +104,24 @@ export async function startDeployment(previewUrl: string) {
     return
   }
 
-  const currentDeployment = await checkIfDeploymentExists(branchName)
+  let deploymentId: number
+  const currentDeployment = await checkIfDeploymentExists(
+    branchName,
+    environment,
+  )
 
   if (currentDeployment.length > 0) {
     console.log("Deployment already exists for this branch")
-    return
+    deploymentId = currentDeployment[0].id
+  } else {
+    deploymentId = await createDeployment(branchName)
   }
 
-  const createdDeploymentId = await createDeployment(branchName)
-  await updateDeploymentStatus(createdDeploymentId, "in_progress", previewUrl)
+  await updateDeploymentStatus({
+    deploymentId,
+    status: "in_progress",
+    environment,
+  })
 
-  return createdDeploymentId
+  return deploymentId
 }

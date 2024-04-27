@@ -43,37 +43,42 @@ export async function run(): Promise<void> {
     const appName = getAppName()
     const domainName = getDomainName()
     const pullRequestNumber = context.payload.pull_request?.number
-    const previewSubDomain = pullRequestNumber
+    const environment = pullRequestNumber
       ? `preview-${pullRequestNumber}`
       : "preview"
     const bucketName = `${appName}-preview-deployment`
-    const previewUrl = `https://${previewSubDomain}.${domainName}`
+    const previewUrl = `https://${environment}.${domainName}`
 
     console.log("Input Params", {
       buildDir,
       appName,
       domainName,
       pullRequestNumber,
-      previewSubDomain,
+      previewSubDomain: environment,
       bucketName,
     })
 
     await createAwsResources({
       bucketName,
       domainName,
-      previewSubDomain,
+      previewSubDomain: environment,
     })
 
-    const deploymentId = await startDeployment(previewUrl)
+    const deploymentId = await startDeployment(environment)
     await syncFiles({
       bucketName,
-      prefix: previewSubDomain,
+      prefix: environment,
       directory: buildDir,
     })
 
     // Deployments are not failing Github action if anything goes wrong during creation
     if (deploymentId)
-      await updateDeploymentStatus(deploymentId, "success", previewUrl)
+      await updateDeploymentStatus({
+        deploymentId,
+        status: "success",
+        previewUrl,
+        environment,
+      })
 
     core.setOutput("url", previewUrl)
   } catch (error) {

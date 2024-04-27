@@ -87644,7 +87644,7 @@ const github_1 = __nccwpck_require__(5438);
 function getGithubClient() {
     return (0, github_1.getOctokit)(process.env.GITHUB_TOKEN);
 }
-async function checkIfDeploymentExists(branchName) {
+async function checkIfDeploymentExists(branchName, environment) {
     const octokit = getGithubClient();
     const owner = github_1.context.repo.owner;
     const repo = github_1.context.repo.repo;
@@ -87652,6 +87652,7 @@ async function checkIfDeploymentExists(branchName) {
         owner,
         repo,
         ref: `refs/heads/${branchName}`,
+        environment,
     });
     console.log("Deployments:", data);
     return data;
@@ -87680,7 +87681,7 @@ async function createDeployment(branchName) {
 /**
  * Updates the deployment status.
  */
-async function updateDeploymentStatus(deploymentId, status, previewUrl) {
+async function updateDeploymentStatus({ deploymentId, status, previewUrl, environment, }) {
     const octokit = getGithubClient();
     const owner = github_1.context.repo.owner;
     const repo = github_1.context.repo.repo;
@@ -87690,23 +87691,36 @@ async function updateDeploymentStatus(deploymentId, status, previewUrl) {
         deployment_id: deploymentId,
         state: status,
         environment_url: previewUrl,
+        environment,
     });
 }
 exports.updateDeploymentStatus = updateDeploymentStatus;
-async function startDeployment(previewUrl) {
+/*
+ * Starts the deployment process.
+ * If a deployment already exists for the branch, it will be used.
+ * Otherwise, a new deployment will be created.
+ */
+async function startDeployment(environment) {
     const branchName = github_1.context.payload.pull_request?.head.ref;
     if (!branchName) {
         console.log("No branch name found in the payload. Skipping deployment creation.");
         return;
     }
-    const currentDeployment = await checkIfDeploymentExists(branchName);
+    let deploymentId;
+    const currentDeployment = await checkIfDeploymentExists(branchName, environment);
     if (currentDeployment.length > 0) {
         console.log("Deployment already exists for this branch");
-        return;
+        deploymentId = currentDeployment[0].id;
     }
-    const createdDeploymentId = await createDeployment(branchName);
-    await updateDeploymentStatus(createdDeploymentId, "in_progress", previewUrl);
-    return createdDeploymentId;
+    else {
+        deploymentId = await createDeployment(branchName);
+    }
+    await updateDeploymentStatus({
+        deploymentId,
+        status: "in_progress",
+        environment,
+    });
+    return deploymentId;
 }
 exports.startDeployment = startDeployment;
 
@@ -87773,33 +87787,38 @@ async function run() {
         const appName = (0, config_1.getAppName)();
         const domainName = (0, config_1.getDomainName)();
         const pullRequestNumber = github_1.context.payload.pull_request?.number;
-        const previewSubDomain = pullRequestNumber
+        const environment = pullRequestNumber
             ? `preview-${pullRequestNumber}`
             : "preview";
         const bucketName = `${appName}-preview-deployment`;
-        const previewUrl = `https://${previewSubDomain}.${domainName}`;
+        const previewUrl = `https://${environment}.${domainName}`;
         console.log("Input Params", {
             buildDir,
             appName,
             domainName,
             pullRequestNumber,
-            previewSubDomain,
+            previewSubDomain: environment,
             bucketName,
         });
         await createAwsResources({
             bucketName,
             domainName,
-            previewSubDomain,
+            previewSubDomain: environment,
         });
-        const deploymentId = await (0, deployments_1.startDeployment)(previewUrl);
+        const deploymentId = await (0, deployments_1.startDeployment)(environment);
         await (0, s3_1.syncFiles)({
             bucketName,
-            prefix: previewSubDomain,
+            prefix: environment,
             directory: buildDir,
         });
         // Deployments are not failing Github action if anything goes wrong during creation
         if (deploymentId)
-            await (0, deployments_1.updateDeploymentStatus)(deploymentId, "success", previewUrl);
+            await (0, deployments_1.updateDeploymentStatus)({
+                deploymentId,
+                status: "success",
+                previewUrl,
+                environment,
+            });
         core.setOutput("url", previewUrl);
     }
     catch (error) {
