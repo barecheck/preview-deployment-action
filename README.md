@@ -16,19 +16,41 @@ availabke to use as part of your Pull request workflow and does the following:
 ## Usage
 
 ```yaml
-steps:
-   - name: Run deployment preview
-      id: s3-preview-deployment-action
-      uses: barecheck/preview-deployment-action@v1
-      with:
-         build-dir: YOUR_STATIC_DIR_OUTPUT
-         app-name: YOUR_APP_NAME
-         domain: YOUR_DOMAIN
-      env:
-         AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-         AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-         AWS_REGION: ${{ secrets.AWS_REGION }}
-         AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
-         AWS_CLOUDFRONT_CERTIFICATE_ARN: ${{ secrets.AWS_CLOUDFRONT_CERTIFICATE_ARN }}
-         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+name: Preview Deployment
+
+on:
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - closed
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Use Node.js v20.9.0
+        uses: actions/setup-node@v1
+        with:
+          node-version: v20.9.0
+
+      - name: Run deployment preview
+        id: s3-preview-deployment-action
+        uses: ./
+        with:
+          # The action should run after your static file are built
+          build-dir: YOU_STATIC_FILES_OUT_DIR
+          # App name will be used to create AWS resources.
+          app-name: YOUR_APP_NAME
+          # Preview deployments will add `preview-{PR-number}` as subdomain to this domain
+          domain: YOUR_DOMAIN_NAME
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ secrets.AWS_REGION }}
+          AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
+          AWS_CLOUDFRONT_CERTIFICATE_ARN: ${{ secrets.AWS_CLOUDFRONT_CERTIFICATE_ARN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 ```
