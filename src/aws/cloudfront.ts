@@ -301,6 +301,14 @@ export async function createCloudfront(originId: string) {
   )
 
   console.log("Creating Cloudfront Distribution", distributionInput)
+  console.log(
+    "Creating Cloudfront Distribution Aliases",
+    distributionInput.DistributionConfig.Aliases,
+  )
+  console.log(
+    "Creating Cloudfront Distribution Origins",
+    distributionInput.DistributionConfig.Origins,
+  )
 
   let distribution
 
