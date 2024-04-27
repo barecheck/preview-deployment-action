@@ -10,24 +10,21 @@ export async function createDeployment() {
   const owner = context.repo.owner
   const repo = context.repo.repo
   const branchName = context.payload.pull_request?.head.ref
-  console.log("Pull request context", context.payload.pull_request)
 
   if (!branchName) {
     console.log(
       "No branch name found in the payload. Skipping deployment creation.",
     )
-
-    const res = await octokit.request(
-      "POST /repos/{owner}/{repo}/deployments",
-      {
-        owner,
-        repo,
-        ref: `refs/heads/${branchName}`,
-        auto_merge: true,
-        dssdsa: "dsds",
-      },
-    )
-
-    console.log("Created Deployment:", res.data)
+    return
   }
+
+  const res = await octokit.request("POST /repos/{owner}/{repo}/deployments", {
+    owner,
+    repo,
+    ref: `refs/heads/${branchName}`,
+    auto_merge: true,
+    transient_environment: true,
+  })
+
+  console.log("Created Deployment:", res.data)
 }
