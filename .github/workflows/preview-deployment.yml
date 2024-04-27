@@ -7,7 +7,6 @@ on:
       - synchronize
       - reopened
       - closed
-      - edited
 
 jobs:
   deploy:
