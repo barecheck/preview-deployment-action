@@ -14,7 +14,7 @@ import {
   updateDeploymentStatus,
   deleteDeployments,
 } from "./github/deployments"
-import { getAppName, getBuidDir, getDomainName } from "./config"
+import { getAppName, getBuidDir, getDomainName, getSubDomain } from "./config"
 
 type CreateAwsResourcesInputParams = {
   bucketName: string
@@ -115,10 +115,14 @@ export async function run(): Promise<void> {
 
     const appName = getAppName()
     const domainName = getDomainName()
+    const subdomain = getSubDomain()
     const pullRequestNumber = pullRequest.number
-    const environment = pullRequestNumber
-      ? `preview-${pullRequestNumber}`
-      : "preview"
+
+    const environment =
+      subdomain && subdomain.length > 0
+        ? `${subdomain}-${pullRequestNumber}`
+        : `${pullRequestNumber}`
+
     const bucketName = `${appName}-preview-deployment`
     const branchName = pullRequest.head.ref
 

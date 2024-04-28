@@ -16,6 +16,10 @@ inputs:
   domain:
     description: "Application domain name (e.g. example.com). Preview URLs will add Pull Request number as a subdomain."
     required: true
+  subdomain:
+    description: "Subdomain for preview URLs (e.g. preview).By default it will be 'preview-{PR_NUMBER}'"
+    required: false
+    default: "preview"
 
 outputs:
   url:
