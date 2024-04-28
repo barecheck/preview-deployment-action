@@ -89678,7 +89678,7 @@ exports.syncFiles = syncFiles;
 "use strict";
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.aws = exports.getGithubToken = exports.getDomainName = exports.getBuidDir = exports.getAppName = void 0;
+exports.aws = exports.getSubDomain = exports.getGithubToken = exports.getDomainName = exports.getBuidDir = exports.getAppName = void 0;
 const core_1 = __nccwpck_require__(2186);
 const getAppName = () => (0, core_1.getInput)("app-name") || process.env.APP_NAME;
 exports.getAppName = getAppName;
@@ -89688,6 +89688,8 @@ const getDomainName = () => (0, core_1.getInput)("domain") || process.env.DOMAIN
 exports.getDomainName = getDomainName;
 const getGithubToken = () => process.env.GITHUB_TOKEN;
 exports.getGithubToken = getGithubToken;
+const getSubDomain = () => (0, core_1.getInput)("subdomain") || "preview";
+exports.getSubDomain = getSubDomain;
 exports.aws = {
     region: process.env.AWS_REGION,
     accountId: process.env.AWS_ACCOUNT_ID,
@@ -89895,10 +89897,11 @@ async function run() {
         }
         const appName = (0, config_1.getAppName)();
         const domainName = (0, config_1.getDomainName)();
+        const subdomain = (0, config_1.getSubDomain)();
         const pullRequestNumber = pullRequest.number;
-        const environment = pullRequestNumber
-            ? `preview-${pullRequestNumber}`
-            : "preview";
+        const environment = subdomain && subdomain.length > 0
+            ? `${subdomain}-${pullRequestNumber}`
+            : `${pullRequestNumber}`;
         const bucketName = `${appName}-preview-deployment`;
         const branchName = pullRequest.head.ref;
         const params = {

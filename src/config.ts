@@ -9,6 +9,8 @@ export const getDomainName = () =>
 
 export const getGithubToken = () => process.env.GITHUB_TOKEN as string
 
+export const getSubDomain = () => getInput("subdomain") || "preview"
+
 export const aws = {
   region: process.env.AWS_REGION as string,
   accountId: process.env.AWS_ACCOUNT_ID as string,
