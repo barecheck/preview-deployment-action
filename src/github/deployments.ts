@@ -40,7 +40,7 @@ async function createDeployment(branchName: string, environment: string) {
     owner,
     repo,
     ref: `refs/heads/${branchName}`,
-    auto_merge: true,
+    auto_merge: false,
     transient_environment: true,
     required_contexts: [], // no checks required
     environment,
