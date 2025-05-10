@@ -28,7 +28,7 @@ async function createAwsResources({
   environment,
 }: CreateAwsResourcesInputParams) {
   // TODO: Ability to give custom region for S3 bucket
-  const originId = `${bucketName}.s3.us-east-1.amazonaws.com`
+  const originId = `${bucketName}.s3.us-west-2.amazonaws.com`
   await setupS3Bucket(bucketName)
   const cloudfront = await createCloudfront(originId)
   await updateBucketPolicy(bucketName, cloudfront.id)
