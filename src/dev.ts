@@ -9,7 +9,7 @@ async function createInfra() {
   const domainName = getDomainName()
 
   const bucketName = `${appName}-preview-deployment`
-  const originId = `${bucketName}.s3.us-east-1.amazonaws.com`
+  const originId = `${bucketName}.s3.us-west-2.amazonaws.com`
   const subDomain = "preview-2"
 
   await setupS3Bucket(bucketName)
