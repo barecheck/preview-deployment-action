@@ -90624,7 +90624,7 @@ async function run() {
         const appName = (0, config_1.getAppName)();
         const domainName = (0, config_1.getDomainName)();
         const subdomain = (0, config_1.getSubDomain)();
-        const branchName = isPullRequest ? pullRequest.head.ref : "dev";
+        const branchName = isPullRequest ? pullRequest.head.ref : "website-preview";
         const pullRequestNumber = isPullRequest ? pullRequest.number : 0;
         const environment = isPullRequest
             ? subdomain && subdomain.length > 0

@@ -120,7 +120,7 @@ export async function run(): Promise<void> {
     const appName = getAppName()
     const domainName = getDomainName()
     const subdomain = getSubDomain()
-    const branchName = isPullRequest ? pullRequest.head.ref : "dev"
+    const branchName = isPullRequest ? pullRequest.head.ref : "website-preview"
     const pullRequestNumber = isPullRequest ? pullRequest.number : 0
 
     const environment = isPullRequest
