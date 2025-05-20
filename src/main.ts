@@ -109,7 +109,7 @@ export async function run(): Promise<void> {
     const pullRequest = context.payload.pull_request
     const ref = context.ref
     const isPullRequest = !!pullRequest
-    const isBranchPush = context.eventName === "push" && ref === "refs/heads/dev"
+    const isBranchPush = context.eventName === "push" && ref === "refs/heads/website-preview"
 
     if (!isPullRequest && !isBranchPush) {
       throw new Error(
