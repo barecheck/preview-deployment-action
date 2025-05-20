@@ -90617,7 +90617,7 @@ async function run() {
         const pullRequest = github_1.context.payload.pull_request;
         const ref = github_1.context.ref;
         const isPullRequest = !!pullRequest;
-        const isBranchPush = github_1.context.eventName === "push" && ref === "refs/heads/dev";
+        const isBranchPush = github_1.context.eventName === "push" && ref === "refs/heads/website-preview";
         if (!isPullRequest && !isBranchPush) {
             throw new Error("This action can only be run on pull requests or dev branch pushes. Exiting...");
         }
