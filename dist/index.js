@@ -90566,7 +90566,7 @@ const deployments_1 = __nccwpck_require__(4341);
 const config_1 = __nccwpck_require__(6373);
 async function createAwsResources({ bucketName, domainName, environment, }) {
     // TODO: Ability to give custom region for S3 bucket
-    const originId = `${bucketName}.s3.us-west-2.amazonaws.com`;
+    const originId = `${bucketName}.s3.us-east-1.amazonaws.com`;
     await (0, s3_1.setupS3Bucket)(bucketName);
     const cloudfront = await (0, cloudfront_1.createCloudfront)(originId);
     await (0, s3_1.updateBucketPolicy)(bucketName, cloudfront.id);
