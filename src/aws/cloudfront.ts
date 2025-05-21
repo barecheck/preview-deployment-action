@@ -27,7 +27,7 @@ import {
 } from "@aws-sdk/client-cloudfront"
 import { readFileSync } from "fs"
 
-import { getAppName, getDomainName, aws } from "../config"
+import { getAppName, getDomainName, aws, getSubDomain } from "../config"
 import path from "path"
 
 const client = new CloudFrontClient()
@@ -39,6 +39,7 @@ function getDefaultDistributionInput(
 ) {
   const appName = getAppName()
   const domainName = getDomainName()
+  const subdomain = getSubDomain()
 
   const defaultDistributionInput = {
     DistributionConfig: {
@@ -46,7 +47,7 @@ function getDefaultDistributionInput(
 
       Aliases: {
         Quantity: Number(1),
-        Items: [`*.${domainName}`],
+        Items: [`${subdomain}.${domainName}`],
       },
       Origins: {
         Quantity: Number(1),

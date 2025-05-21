@@ -89918,12 +89918,13 @@ const client = new client_cloudfront_1.CloudFrontClient();
 function getDefaultDistributionInput(originId, originAccessControlId, cloudfrontFunctionArn) {
     const appName = (0, config_1.getAppName)();
     const domainName = (0, config_1.getDomainName)();
+    const subdomain = (0, config_1.getSubDomain)();
     const defaultDistributionInput = {
         DistributionConfig: {
             CallerReference: appName,
             Aliases: {
                 Quantity: Number(1),
-                Items: [`*.${domainName}`],
+                Items: [`${subdomain}.${domainName}`],
             },
             Origins: {
                 Quantity: Number(1),
