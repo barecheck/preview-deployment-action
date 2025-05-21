@@ -45,6 +45,7 @@ async function createDeployment(branchName: string, environment: string) {
     environment,
   })
 
+  console.log("Deployment response from GitHub:", data)
   if (!data || !("id" in data)) {
     throw new Error("Failed to create deployment")
   }

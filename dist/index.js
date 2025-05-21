@@ -90456,6 +90456,7 @@ async function createDeployment(branchName, environment) {
         required_contexts: [], // no checks required
         environment,
     });
+    console.log("Deployment response from GitHub:", data);
     if (!data || !("id" in data)) {
         throw new Error("Failed to create deployment");
     }
