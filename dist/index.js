@@ -90658,7 +90658,8 @@ async function run() {
             }
         }
         else if (isBranchPush) {
-            createPreviewEnvironment(params);
+            await deletePreviewEnvironment(params); // delete previous deployment
+            await createPreviewEnvironment(params); // make new one
         }
     }
     catch (error) {
