@@ -90619,14 +90619,14 @@ async function run() {
         const pullRequest = github_1.context.payload.pull_request;
         const ref = github_1.context.ref;
         const isPullRequest = !!pullRequest;
-        const isBranchPush = github_1.context.eventName === "push" && ref === "refs/heads/website-preview";
+        const isBranchPush = github_1.context.eventName === "push" && ref === "refs/heads/gameplay-website-v2";
         if (!isPullRequest && !isBranchPush) {
             throw new Error("This action can only be run on pull requests or dev branch pushes. Exiting...");
         }
         const appName = (0, config_1.getAppName)();
         const domainName = (0, config_1.getDomainName)();
         const subdomain = (0, config_1.getSubDomain)();
-        const branchName = isPullRequest ? pullRequest.head.ref : "website-preview";
+        const branchName = isPullRequest ? pullRequest.head.ref : "gameplay-website-v2";
         const pullRequestNumber = isPullRequest ? pullRequest.number : 0;
         const environment = isPullRequest
             ? subdomain && subdomain.length > 0
